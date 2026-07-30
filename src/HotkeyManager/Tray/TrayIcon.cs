@@ -15,10 +15,12 @@ public sealed class TrayIcon : IDisposable
         _menu.Items.Add("重新加载配置", null, (_, _) => reloadConfig());
         _menu.Items.Add(new ToolStripSeparator());
         _menu.Items.Add("退出", null, (_, _) => exit());
+        Win11MenuStyle.Apply(_menu);
 
         _icon = new NotifyIcon
         {
-            Icon = SystemIcons.Application,
+            // 复用嵌入 exe 的应用图标，避免再分发一份 .ico 文件
+            Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath)!,
             Text = "HotkeyManager 全局热键",
             Visible = true,
             ContextMenuStrip = _menu

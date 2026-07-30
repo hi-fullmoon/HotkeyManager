@@ -6,16 +6,11 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>HotkeyManager</RootNamespace>
-    <AssemblyName>HotkeyManager</AssemblyName>
-    <Version>0.1.0</Version>
-    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Update="config.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <Compile Include="..\..\src\HotkeyManager\Tray\Win11MenuStyle.cs" Link="Win11MenuStyle.cs" />
+    <Compile Include="..\..\src\HotkeyManager\Interop\DwmApi.cs" Link="DwmApi.cs" />
   </ItemGroup>
 
 </Project>

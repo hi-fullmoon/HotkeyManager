@@ -20,7 +20,7 @@ dotnet run
 发布单文件 exe（无需安装 .NET 运行时）：
 
 ```powershell
-dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
 ```
 
 产物在 `bin/Release/net8.0-windows/win-x64/publish/HotkeyManager.exe`，连同旁边的 `config.json` 一起拷走即可。

@@ -6,9 +6,9 @@
       "HideMode": "minimize",
       "Target": {
         "DisplayName": "微信",
-        "ProcessName": "WeChat",
-        "ExePath": "C:\\Program Files\\Tencent\\WeChat\\WeChat.exe",
-        "WindowClass": "WeChatMainWndForPC"
+        "ProcessName": "Weixin",
+        "ExePath": "D:\\Programs\\Weixin\\Weixin.exe",
+        "WindowClass": ""
       }
     },
     {
