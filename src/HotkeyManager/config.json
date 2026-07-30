@@ -1,0 +1,26 @@
+{
+  "Hotkeys": [
+    {
+      "Modifiers": "Ctrl+Alt",
+      "Key": "D1",
+      "HideMode": "minimize",
+      "Target": {
+        "DisplayName": "微信",
+        "ProcessName": "WeChat",
+        "ExePath": "C:\\Program Files\\Tencent\\WeChat\\WeChat.exe",
+        "WindowClass": "WeChatMainWndForPC"
+      }
+    },
+    {
+      "Modifiers": "Ctrl+Alt",
+      "Key": "D2",
+      "HideMode": "minimize",
+      "Target": {
+        "DisplayName": "记事本",
+        "ProcessName": "notepad",
+        "ExePath": "C:\\Windows\\System32\\notepad.exe",
+        "WindowClass": ""
+      }
+    }
+  ]
+}
