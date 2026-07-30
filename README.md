@@ -8,7 +8,7 @@ Windows 全局热键工具：按一个快捷键切换任意应用的显示/隐�
 - 应用未运行时自动按配置路径启动
 - 窗口最小化/隐藏 → 还原并置前；显示中 → 最小化（或彻底隐藏，可配）
 - 配置文件保存即热重载，无需重启
-- 系统托盘运行，右键菜单可打开配置 / 重载 / 退出
+- 系统托盘运行，右键菜单可打开配置 / 重载 / 暂停热键 / 开关开机自启 / 退出
 
 ## 构建与运行（需在 Windows 上）
 
@@ -24,6 +24,14 @@ dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true 
 ```
 
 产物在 `bin/Release/net8.0-windows/win-x64/publish/HotkeyManager.exe`，连同旁边的 `config.json` 一起拷走即可。
+
+制作安装包（需安装 [Inno Setup 6](https://jrsoftware.org/isinfo.php)，脚本会引用发布产物）：
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" installer/setup.iss
+```
+
+产物为 `installer/HotkeyManagerSetup-<版本>.exe`：向导可自定义安装路径、可选开机自启/桌面快捷方式，卸载时保留 `config.json`。
 
 ## 配置说明（config.json）
 

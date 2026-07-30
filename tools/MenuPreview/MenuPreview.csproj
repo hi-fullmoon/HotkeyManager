@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\src\HotkeyManager\Tray\TrayIcon.cs" Link="TrayIcon.cs" />
     <Compile Include="..\..\src\HotkeyManager\Tray\Win11MenuStyle.cs" Link="Win11MenuStyle.cs" />
     <Compile Include="..\..\src\HotkeyManager\Interop\DwmApi.cs" Link="DwmApi.cs" />
   </ItemGroup>

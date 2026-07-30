@@ -21,7 +21,8 @@ internal sealed class HotkeyAppContext : ApplicationContext
 
         _configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
         _configManager = new ConfigManager(_configPath);
-        _tray = new TrayIcon(OpenConfig, ApplyConfig, Exit);
+        _tray = new TrayIcon(OpenConfig, ApplyConfig, TogglePause,
+            AutostartService.IsEnabled, SetAutostart, Exit);
         _windowService.ErrorOccurred += msg => _tray.ShowBalloon("HotkeyManager", msg);
 
         // FileSystemWatcher/Timer 回调在线程池线程上，封送回 UI 线程再重注册热键；
@@ -73,6 +74,10 @@ internal sealed class HotkeyAppContext : ApplicationContext
 
         _hotkeyService.UnregisterAll();
 
+        // 暂停状态下不注册：热重载只校验配置，按键保持释放状态
+        if (_paused)
+            return;
+
         var registered = 0;
         foreach (var (modifiers, virtualKey, entry) in parsed)
         {
@@ -87,6 +92,30 @@ internal sealed class HotkeyAppContext : ApplicationContext
         }
 
         _tray.ShowBalloon("HotkeyManager", $"已注册 {registered}/{parsed.Count} 个热键");
+    }
+
+    private bool _paused;
+
+    /// <summary>暂停/恢复热键。暂停时注销全部热键，把按键真正释放给其他程序。返回是否处于暂停状态。</summary>
+    private bool TogglePause()
+    {
+        _paused = !_paused;
+        if (_paused)
+        {
+            _hotkeyService.UnregisterAll();
+            _tray.ShowBalloon("HotkeyManager", "热键已暂停，所有快捷键已释放");
+        }
+        else
+        {
+            ApplyConfig(); // 重新注册，内部有气球提示
+        }
+        return _paused;
+    }
+
+    private void SetAutostart(bool enabled)
+    {
+        AutostartService.SetEnabled(enabled);
+        _tray.ShowBalloon("HotkeyManager", enabled ? "已开启开机自启" : "已关闭开机自启");
     }
 
     private void OpenConfig()
