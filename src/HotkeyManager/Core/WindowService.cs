@@ -42,6 +42,11 @@ public sealed class WindowService
             User32.ShowWindow(hwnd, User32.SW_RESTORE);
             ForceForeground(hwnd);
         }
+        else if (User32.GetForegroundWindow() != hwnd)
+        {
+            // 窗口可见但不在前台（刚被其他快捷键切走）：先置前而不是直接隐藏
+            ForceForeground(hwnd);
+        }
         else
         {
             // HideMode 在 JSON 里可能被显式写成 null，用 string.Equals 避免空引用
