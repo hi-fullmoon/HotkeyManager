@@ -1,9 +1,9 @@
 {
   "hotkeys": [
-    { "key": "alt+1", "processName": "WeChat", "exePath": "C:\\Program Files\\Tencent\\WeChat\\WeChat.exe", "hideMode": "minimize" },
-    { "key": "alt+2", "processName": "chrome", "exePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "hideMode": "minimize" },
-    { "key": "alt+3", "processName": "notepad", "exePath": "C:\\Windows\\System32\\notepad.exe", "hideMode": "minimize" },
-    { "key": "alt+4", "processName": "Code", "exePath": "C:\\Program Files\\Microsoft VS Code\\Code.exe", "hideMode": "minimize" },
-    { "key": "alt+5", "processName": "Obsidian", "exePath": "C:\\Program Files\\Obsidian\\Obsidian.exe", "hideMode": "minimize" }
+    { "key": "alt+1", "processName": "WeChat", "exePath": "C:\\Program Files\\Tencent\\WeChat\\WeChat.exe" },
+    { "key": "alt+2", "processName": "chrome", "exePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" },
+    { "key": "alt+3", "processName": "WindowsTerminal", "exePath": "C:\\Users\\<用户名>\\AppData\\Local\\Microsoft\\WindowsApps\\wt.exe" },
+    { "key": "alt+4", "processName": "Code", "exePath": "C:\\Program Files\\Microsoft VS Code\\Code.exe" },
+    { "key": "alt+5", "processName": "Obsidian", "exePath": "C:\\Program Files\\Obsidian\\Obsidian.exe" }
   ]
 }

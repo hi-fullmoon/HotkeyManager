@@ -6,7 +6,7 @@ Windows 全局热键工具：按一个快捷键切换任意应用的显示/隐�
 
 - 任意数量的「热键 → 应用」映射，全部写在 `%USERPROFILE%\.hotkeymanager.json` 里
 - 应用未运行时自动按配置路径启动
-- 窗口最小化/隐藏 → 还原并置前；显示中 → 最小化（或彻底隐藏，可配）
+- 窗口最小化 → 还原并置前；显示中 → 最小化
 - 配置文件保存即热重载，无需重启
 - 系统托盘运行，右键菜单可打开配置 / 重载 / 暂停热键 / 开关开机自启 / 退出
 
@@ -40,7 +40,7 @@ dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true 
 ```json
 {
   "hotkeys": [
-    { "key": "alt+1", "processName": "WeChat", "exePath": "C:\\Program Files\\Tencent\\WeChat\\WeChat.exe", "hideMode": "minimize" }
+    { "key": "alt+1", "processName": "WeChat", "exePath": "C:\\Program Files\\Tencent\\WeChat\\WeChat.exe" }
   ]
 }
 ```
@@ -50,7 +50,6 @@ dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true 
 | `key` | 组合键字符串，最后一段为按键，其余为修饰键（`Ctrl` / `Alt` / `Shift` / `Win`），如 `alt+1`、`ctrl+alt+a`。按键参考 WinForms `Keys` 枚举：`1`~`9`、`F1`~`F12`、`A`~`Z`、`NumPad0` 等 |
 | `processName` | 进程名，不含 `.exe` |
 | `exePath` | 进程未运行时用于启动的路径 |
-| `hideMode` | `minimize`（最小化，默认）或 `hide`（彻底隐藏窗口） |
 | `windowClass` | 可选。窗口类名（用 Spy++ / Window Detective 查看），填写后优先按类名查找，能定位到最小化到托盘的隐藏窗口 |
 
 注意：

@@ -19,9 +19,6 @@ public sealed class HotkeyEntry
     /// <summary>可执行文件路径，进程未运行时用于启动。</summary>
     public string ExePath { get; set; } = "";
 
-    /// <summary>隐藏方式：minimize（最小化，默认）或 hide（彻底隐藏窗口）。</summary>
-    public string HideMode { get; set; } = "minimize";
-
     /// <summary>窗口类名（可选，用 Spy++ 查看）。填写后优先按类名查找，可定位到托盘化的隐藏窗口。</summary>
     public string WindowClass { get; set; } = "";
 }

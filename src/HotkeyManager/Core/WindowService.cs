@@ -49,11 +49,7 @@ public sealed class WindowService
         }
         else
         {
-            // HideMode 在 JSON 里可能被显式写成 null，用 string.Equals 避免空引用
-            var command = string.Equals(entry.HideMode, "hide", StringComparison.OrdinalIgnoreCase)
-                ? User32.SW_HIDE
-                : User32.SW_MINIMIZE;
-            User32.ShowWindow(hwnd, command);
+            User32.ShowWindow(hwnd, User32.SW_MINIMIZE);
         }
     }
 
@@ -88,17 +84,31 @@ public sealed class WindowService
 
     private static IntPtr FindWindowByProcessId(uint processId)
     {
+        // 在无 owner 的顶层窗口里打分选优：带标题 > 可见 > 非最小化。
+        // 主窗口几乎总有标题，隐藏的辅助/消息窗口通常没有，打分优先标题可避开后者；
+        // 不把"可见"设为硬性条件，否则 hide 模式藏掉的窗口找不回。
         var result = IntPtr.Zero;
+        var bestScore = -1;
         User32.EnumWindows((hwnd, _) =>
         {
             User32.GetWindowThreadProcessId(hwnd, out var pid);
-            // 顶层且无 owner 即认为是主窗口；不要求可见，否则 hide 模式藏掉的窗口找不回
-            if (pid == processId && User32.GetWindow(hwnd, User32.GW_OWNER) == IntPtr.Zero)
+            if (pid != processId || User32.GetWindow(hwnd, User32.GW_OWNER) != IntPtr.Zero)
+                return true;
+
+            var score = 0;
+            if (User32.GetWindowTextLength(hwnd) > 0)
+                score += 4;
+            if (User32.IsWindowVisible(hwnd))
+                score += 2;
+            if (!User32.IsIconic(hwnd))
+                score += 1;
+
+            if (score > bestScore)
             {
+                bestScore = score;
                 result = hwnd;
-                return false; // 停止枚举
             }
-            return true;
+            return true; // 继续枚举，取分数最高的候选
         }, IntPtr.Zero);
         return result;
     }
