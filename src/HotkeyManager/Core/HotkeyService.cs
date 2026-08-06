@@ -56,6 +56,8 @@ public sealed class HotkeyService : IDisposable
         foreach (var id in _callbacks.Keys)
             User32.UnregisterHotKey(_window.Handle, id);
         _callbacks.Clear();
+        // id 只在全部注销后才会重新分配，归零避免多次热重载后无限增长
+        _lastId = 0;
     }
 
     public void Dispose()
