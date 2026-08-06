@@ -44,8 +44,15 @@ internal sealed class HotkeyAppContext : ApplicationContext
         ApplyConfig();
     }
 
+    private bool _paused;
+    private bool _disposed;
+
     private void ApplyConfig()
     {
+        // 退出后防抖回调仍可能触发热重载，此时依赖项已释放，直接忽略
+        if (_disposed)
+            return;
+
         var config = _configManager.Load();
         if (config is null)
         {
@@ -97,8 +104,6 @@ internal sealed class HotkeyAppContext : ApplicationContext
         _tray.ShowBalloon("HotkeyManager", $"已注册 {registered}/{parsed.Count} 个热键");
     }
 
-    private bool _paused;
-
     /// <summary>暂停/恢复热键。暂停时注销全部热键，把按键真正释放给其他程序。返回是否处于暂停状态。</summary>
     private bool TogglePause()
     {
@@ -129,6 +134,7 @@ internal sealed class HotkeyAppContext : ApplicationContext
 
     private void Exit()
     {
+        _disposed = true; // 先置位，防抖回调触发的 ApplyConfig 会直接忽略
         _tray.Dispose();
         _hotkeyService.Dispose();
         _configManager.Dispose();
