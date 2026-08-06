@@ -2,12 +2,11 @@ using System.Text.Json;
 
 namespace HotkeyManager.Config;
 
-/// <summary>config.json 的加载与热重载（FileSystemWatcher + 防抖）。</summary>
+/// <summary>.hotkeymanager.json 的加载与热重载（FileSystemWatcher + 防抖）。</summary>
 public sealed class ConfigManager : IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        WriteIndented = true,
         PropertyNameCaseInsensitive = true
     };
 
@@ -21,8 +20,7 @@ public sealed class ConfigManager : IDisposable
     public ConfigManager(string path)
     {
         _path = path;
-        if (!File.Exists(path))
-            SaveDefault();
+        SaveDefaultIfNeeded();
 
         _debounceTimer = new System.Threading.Timer(_ => Changed?.Invoke(), null, Timeout.Infinite, Timeout.Infinite);
 
@@ -53,23 +51,34 @@ public sealed class ConfigManager : IDisposable
         }
     }
 
-    public void SaveDefault()
+    /// <summary>首次运行时写入默认模板。</summary>
+    private void SaveDefaultIfNeeded()
     {
-        var sample = new AppConfig();
-        sample.Hotkeys.Add(new HotkeyEntry
+        if (File.Exists(_path))
+            return;
+        try
         {
-            Modifiers = "Ctrl+Alt",
-            Key = "D1",
-            Target = new TargetApp
-            {
-                DisplayName = "微信",
-                ProcessName = "WeChat",
-                ExePath = @"C:\Program Files\Tencent\WeChat\WeChat.exe",
-                WindowClass = "WeChatMainWndForPC"
-            }
-        });
-        File.WriteAllText(_path, JsonSerializer.Serialize(sample, JsonOptions));
+            File.WriteAllText(_path, DefaultTemplate);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // 写入失败不致命：Load 会返回 null，用户可从托盘菜单修复配置
+            System.Diagnostics.Debug.WriteLine($"[HotkeyManager] 写入默认配置失败：{ex.Message}");
+        }
     }
+
+    /// <summary>默认配置模板（与仓库根目录 config.json 保持一致）。</summary>
+    private const string DefaultTemplate = """
+    {
+      "hotkeys": [
+        { "key": "alt+1", "processName": "WeChat", "exePath": "C:\\Program Files\\Tencent\\WeChat\\WeChat.exe", "hideMode": "minimize" },
+        { "key": "alt+2", "processName": "chrome", "exePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "hideMode": "minimize" },
+        { "key": "alt+3", "processName": "notepad", "exePath": "C:\\Windows\\System32\\notepad.exe", "hideMode": "minimize" },
+        { "key": "alt+4", "processName": "Code", "exePath": "C:\\Program Files\\Microsoft VS Code\\Code.exe", "hideMode": "minimize" },
+        { "key": "alt+5", "processName": "Obsidian", "exePath": "C:\\Program Files\\Obsidian\\Obsidian.exe", "hideMode": "minimize" }
+      ]
+    }
+    """;
 
     public void Dispose()
     {

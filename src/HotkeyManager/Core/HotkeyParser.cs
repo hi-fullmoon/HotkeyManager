@@ -3,14 +3,18 @@ using HotkeyManager.Interop;
 
 namespace HotkeyManager.Core;
 
-/// <summary>把配置里的字符串（如 "Ctrl+Alt" / "D1"）解析成 user32 需要的修饰键标志和虚拟键码。</summary>
+/// <summary>把配置里的组合键字符串（如 "ctrl+alt+1"）解析成 user32 需要的修饰键标志和虚拟键码。</summary>
 public static class HotkeyParser
 {
-    public static (uint Modifiers, uint VirtualKey) Parse(string modifiers, string key)
+    /// <summary>最后一段为按键，其余为修饰键；Key 在 JSON 里可能是显式 null，按空串处理（解析失败）。</summary>
+    public static (uint Modifiers, uint VirtualKey) Parse(string? combo)
     {
-        // Modifiers 在 JSON 里可能是显式 null，按"无修饰键"处理
+        var parts = (combo ?? "").Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 0)
+            throw new FormatException("组合键为空（格式如 \"ctrl+alt+1\"，最后一段为按键，其余为修饰键）");
+
         var mods = 0u;
-        foreach (var part in (modifiers ?? "").Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (var part in parts.Take(parts.Length - 1))
         {
             mods |= part.ToLowerInvariant() switch
             {
@@ -22,8 +26,13 @@ public static class HotkeyParser
             };
         }
 
-        if (string.IsNullOrWhiteSpace(key) || !Enum.TryParse<Keys>(key, ignoreCase: true, out var keys))
-            throw new FormatException($"未知的按键：{key}（参考 WinForms Keys 枚举，如 D1、F5、A、NumPad0）");
+        var key = parts[^1];
+        // 单个数字按主键盘数字键处理（"1" → D1），与 mac 版 "alt+1" 写法一致
+        if (key.Length == 1 && char.IsDigit(key[0]))
+            key = "D" + key;
+
+        if (!Enum.TryParse<Keys>(key, ignoreCase: true, out var keys))
+            throw new FormatException($"未知的按键：{key}（参考 WinForms Keys 枚举，如 1、F5、A、NumPad0）");
 
         return (mods, (uint)(keys & Keys.KeyCode));
     }

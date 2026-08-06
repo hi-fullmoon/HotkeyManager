@@ -24,16 +24,16 @@ public sealed class WindowService
         }
         catch (Exception ex)
         {
-            ErrorOccurred?.Invoke($"切换「{Name(entry.Target)}」失败：{ex.Message}");
+            ErrorOccurred?.Invoke($"切换「{entry.ProcessName}」失败：{ex.Message}");
         }
     }
 
     private void ToggleCore(HotkeyEntry entry)
     {
-        var hwnd = FindWindow(entry.Target);
+        var hwnd = FindWindow(entry);
         if (hwnd == IntPtr.Zero)
         {
-            Launch(entry.Target);
+            Launch(entry);
             return;
         }
 
@@ -52,19 +52,19 @@ public sealed class WindowService
         }
     }
 
-    private static IntPtr FindWindow(TargetApp target)
+    private static IntPtr FindWindow(HotkeyEntry entry)
     {
         // 优先按窗口类名查找：FindWindow 能找到被隐藏（最小化到托盘）的窗口
-        if (!string.IsNullOrWhiteSpace(target.WindowClass))
+        if (!string.IsNullOrWhiteSpace(entry.WindowClass))
         {
-            var hwnd = User32.FindWindow(target.WindowClass, null);
+            var hwnd = User32.FindWindow(entry.WindowClass, null);
             if (hwnd != IntPtr.Zero)
                 return hwnd;
         }
 
-        if (!string.IsNullOrWhiteSpace(target.ProcessName))
+        if (!string.IsNullOrWhiteSpace(entry.ProcessName))
         {
-            foreach (var process in Process.GetProcessesByName(target.ProcessName))
+            foreach (var process in Process.GetProcessesByName(entry.ProcessName))
             {
                 using (process)
                 {
@@ -121,24 +121,21 @@ public sealed class WindowService
             User32.AttachThreadInput(currentThread, foregroundThread, false);
     }
 
-    private void Launch(TargetApp target)
+    private void Launch(HotkeyEntry entry)
     {
-        if (string.IsNullOrWhiteSpace(target.ExePath) || !File.Exists(target.ExePath))
+        if (string.IsNullOrWhiteSpace(entry.ExePath) || !File.Exists(entry.ExePath))
         {
-            ErrorOccurred?.Invoke($"未找到「{Name(target)}」的窗口，且启动路径无效：{target.ExePath}");
+            ErrorOccurred?.Invoke($"未找到「{entry.ProcessName}」的窗口，且启动路径无效：{entry.ExePath}");
             return;
         }
 
         try
         {
-            using var process = Process.Start(new ProcessStartInfo(target.ExePath) { UseShellExecute = true });
+            using var process = Process.Start(new ProcessStartInfo(entry.ExePath) { UseShellExecute = true });
         }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
         {
-            ErrorOccurred?.Invoke($"启动「{Name(target)}」失败：{ex.Message}");
+            ErrorOccurred?.Invoke($"启动「{entry.ProcessName}」失败：{ex.Message}");
         }
     }
-
-    private static string Name(TargetApp target) =>
-        string.IsNullOrWhiteSpace(target.DisplayName) ? target.ProcessName : target.DisplayName;
 }

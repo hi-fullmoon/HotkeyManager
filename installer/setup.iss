@@ -34,8 +34,7 @@ Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: 
 
 [Files]
 Source: "{#PublishDir}\HotkeyManager.exe"; DestDir: "{app}"; Flags: ignoreversion
-; 用户配置：已存在则不覆盖，卸载时保留
-Source: "{#PublishDir}\config.json"; DestDir: "{app}"; Flags: onlyifdoesntexist uninsneveruninstall
+; 用户配置位于 %USERPROFILE%\.hotkeymanager.json，首次运行自动生成，安装/卸载均不触碰
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\HotkeyManager.exe"

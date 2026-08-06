@@ -19,7 +19,10 @@ internal sealed class HotkeyAppContext : ApplicationContext
         // 强制在 UI 线程创建句柄，用于把配置文件的变更回调封送回 UI 线程
         _ = _marshaler.Handle;
 
-        _configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
+        // 与 mac 版一致：个人目录下的隐藏文件 %USERPROFILE%\.hotkeymanager.json
+        _configPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".hotkeymanager.json");
         _configManager = new ConfigManager(_configPath);
         _tray = new TrayIcon(OpenConfig, ApplyConfig, TogglePause,
             AutostartService.IsEnabled, SetAutostart, Exit);
@@ -47,7 +50,7 @@ internal sealed class HotkeyAppContext : ApplicationContext
         if (config is null)
         {
             // 配置损坏（常见原因：编辑器保存到一半触发了热重载），保持现有热键不动
-            _tray.ShowBalloon("配置解析失败", "config.json 格式有误，已保持现有热键不变");
+            _tray.ShowBalloon("配置解析失败", ".hotkeymanager.json 格式有误，已保持现有热键不变");
             return;
         }
 
@@ -55,7 +58,7 @@ internal sealed class HotkeyAppContext : ApplicationContext
         var parsed = new List<(uint Modifiers, uint VirtualKey, HotkeyEntry Entry)>();
         foreach (var entry in config.Hotkeys)
         {
-            if (entry is null || entry.Target is null)
+            if (entry is null)
             {
                 _tray.ShowBalloon("配置格式错误", "存在空的热键条目，已跳过");
                 continue;
@@ -63,7 +66,7 @@ internal sealed class HotkeyAppContext : ApplicationContext
 
             try
             {
-                var (modifiers, virtualKey) = HotkeyParser.Parse(entry.Modifiers, entry.Key);
+                var (modifiers, virtualKey) = HotkeyParser.Parse(entry.Key);
                 parsed.Add((modifiers, virtualKey, entry));
             }
             catch (FormatException ex)
@@ -87,7 +90,7 @@ internal sealed class HotkeyAppContext : ApplicationContext
             }
             else
             {
-                _tray.ShowBalloon("热键注册失败", $"{entry.Modifiers}+{entry.Key}：{error}");
+                _tray.ShowBalloon("热键注册失败", $"{entry.Key}：{error}");
             }
         }
 

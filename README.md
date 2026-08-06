@@ -4,7 +4,7 @@ Windows 全局热键工具：按一个快捷键切换任意应用的显示/隐�
 
 ## 功能
 
-- 任意数量的「热键 → 应用」映射，全部写在 `config.json` 里
+- 任意数量的「热键 → 应用」映射，全部写在 `%USERPROFILE%\.hotkeymanager.json` 里
 - 应用未运行时自动按配置路径启动
 - 窗口最小化/隐藏 → 还原并置前；显示中 → 最小化（或彻底隐藏，可配）
 - 配置文件保存即热重载，无需重启
@@ -23,7 +23,7 @@ dotnet run
 dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
 ```
 
-产物在 `bin/Release/net8.0-windows/win-x64/publish/HotkeyManager.exe`，连同旁边的 `config.json` 一起拷走即可。
+产物在 `bin/Release/net8.0-windows/win-x64/publish/HotkeyManager.exe`，单个 exe 拷走即可；配置文件首次运行时自动生成。
 
 制作安装包（需安装 [Inno Setup 6](https://jrsoftware.org/isinfo.php)，脚本会引用发布产物）：
 
@@ -31,36 +31,27 @@ dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true 
 & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" installer/setup.iss
 ```
 
-产物为 `installer/HotkeyManagerSetup-<版本>.exe`：向导可自定义安装路径、可选开机自启/桌面快捷方式，卸载时保留 `config.json`。
+产物为 `installer/HotkeyManagerSetup-<版本>.exe`：向导可自定义安装路径、可选开机自启/桌面快捷方式；配置保存在用户目录，卸载不受影响。
 
-## 配置说明（config.json）
+## 配置说明（.hotkeymanager.json）
+
+配置文件位于 `%USERPROFILE%\.hotkeymanager.json`（个人目录下的隐藏文件，与 mac 版一致），首次运行时自动写入默认模板（内容与仓库根目录 `config.json` 一致），保存即热重载：
 
 ```json
 {
-  "Hotkeys": [
-    {
-      "Modifiers": "Ctrl+Alt",
-      "Key": "D1",
-      "HideMode": "minimize",
-      "Target": {
-        "DisplayName": "微信",
-        "ProcessName": "WeChat",
-        "ExePath": "C:\\Program Files\\Tencent\\WeChat\\WeChat.exe",
-        "WindowClass": "WeChatMainWndForPC"
-      }
-    }
+  "hotkeys": [
+    { "key": "alt+1", "processName": "WeChat", "exePath": "C:\\Program Files\\Tencent\\WeChat\\WeChat.exe", "hideMode": "minimize" }
   ]
 }
 ```
 
 | 字段 | 说明 |
 |------|------|
-| `Modifiers` | 修饰键，`+` 分隔：`Ctrl` / `Alt` / `Shift` / `Win` |
-| `Key` | 按键名，对应 WinForms `Keys` 枚举：`D1`~`D9`、`F1`~`F12`、`A`~`Z`、`NumPad0` 等 |
-| `HideMode` | `minimize`（最小化，默认）或 `hide`（彻底隐藏窗口） |
-| `Target.ProcessName` | 进程名，不含 `.exe` |
-| `Target.ExePath` | 进程未运行时用于启动的路径 |
-| `Target.WindowClass` | 可选。窗口类名（用 Spy++ / Window Detective 查看），填写后优先按类名查找，能定位到最小化到托盘的隐藏窗口 |
+| `key` | 组合键字符串，最后一段为按键，其余为修饰键（`Ctrl` / `Alt` / `Shift` / `Win`），如 `alt+1`、`ctrl+alt+a`。按键参考 WinForms `Keys` 枚举：`1`~`9`、`F1`~`F12`、`A`~`Z`、`NumPad0` 等 |
+| `processName` | 进程名，不含 `.exe` |
+| `exePath` | 进程未运行时用于启动的路径 |
+| `hideMode` | `minimize`（最小化，默认）或 `hide`（彻底隐藏窗口） |
+| `windowClass` | 可选。窗口类名（用 Spy++ / Window Detective 查看），填写后优先按类名查找，能定位到最小化到托盘的隐藏窗口 |
 
 注意：
 
@@ -76,11 +67,11 @@ src/HotkeyManager/
 ├── HotkeyAppContext.cs     # 组装各服务，应用配置
 ├── Core/
 │   ├── HotkeyService.cs    # RegisterHotKey 封装，WM_HOTKEY 分发
-│   ├── HotkeyParser.cs     # "Ctrl+Alt" / "D1" → 修饰键标志 + 虚拟键码
+│   ├── HotkeyParser.cs     # "ctrl+alt+1" → 修饰键标志 + 虚拟键码
 │   └── WindowService.cs    # 窗口查找、显示/隐藏切换、置前
 ├── Config/
 │   ├── AppConfig.cs        # 配置模型
-│   └── ConfigManager.cs    # config.json 加载与热重载
+│   └── ConfigManager.cs    # .hotkeymanager.json 加载与热重载
 ├── Tray/
 │   └── TrayIcon.cs         # 托盘图标与右键菜单
 └── Interop/
