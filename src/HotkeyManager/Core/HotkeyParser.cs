@@ -31,7 +31,12 @@ public static class HotkeyParser
         if (key.Length == 1 && char.IsDigit(key[0]))
             key = "D" + key;
 
-        if (!Enum.TryParse<Keys>(key, ignoreCase: true, out var keys))
+        // Enum.TryParse 会把纯数字字符串按底层数值解析（如 "12" → Keys.Clear、"13" → Keys.Enter），
+        // 多位数数字串必须显式拒绝，否则会静默注册错误的按键
+        if (key.Length > 1 && key.All(char.IsDigit))
+            throw new FormatException($"未知的按键：{key}（参考 WinForms Keys 枚举，如 1、F5、A、NumPad0）");
+
+        if (!Enum.TryParse<Keys>(key, ignoreCase: true, out var keys) || !Enum.IsDefined(keys))
             throw new FormatException($"未知的按键：{key}（参考 WinForms Keys 枚举，如 1、F5、A、NumPad0）");
 
         return (mods, (uint)(keys & Keys.KeyCode));
