@@ -33,6 +33,20 @@ dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true 
 
 产物为 `installer/HotkeyManagerSetup-<版本>.exe`：向导可自定义安装路径、可选开机自启/桌面快捷方式；配置保存在用户目录，卸载不受影响。
 
+也可以用 `tools/build.ps1` 一键完成「改版本号 → 发布 → 打包」：
+
+```powershell
+./tools/build.ps1                 # 沿用当前版本号直接打包
+./tools/build.ps1 -Version 0.2.0  # 版本号写入 csproj 和 setup.iss 后再打包
+```
+
+只改版本号不打包时用 `tools/bump-version.ps1`：
+
+```powershell
+./tools/bump-version.ps1 patch   # 0.1.0 -> 0.1.1（也支持 minor / major）
+./tools/bump-version.ps1 1.2.3   # 直接指定版本号
+```
+
 ## 配置说明（.hotkeymanager.json）
 
 配置文件位于 `%USERPROFILE%\.hotkeymanager.json`（个人目录下的隐藏文件，与 mac 版一致），首次运行时自动写入默认模板（内容与仓库根目录 `config.json` 一致），保存即热重载：

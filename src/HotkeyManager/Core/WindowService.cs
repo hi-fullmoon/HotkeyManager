@@ -11,6 +11,19 @@ public sealed class WindowService
     /// <summary>操作失败时触发（参数为用户可读的提示信息），由上层决定如何展示。</summary>
     public event Action<string>? ErrorOccurred;
 
+    // 启动中状态：目标程序启动到窗口出现需要时间，期间连按热键会反复走进 Launch 打开多个窗口。
+    // 记录启动的进程对象用于自检——进程已退出说明启动失败/闪退，允许立即重试；
+    // 窗口一旦出现 FindWindow 就能命中，状态随之解除。时间仅作兜底：进程卡死一直不出窗口时允许重试。
+    // Toggle 始终在 UI 线程（WndProc 同步）调用，无需加锁。
+    private sealed class LaunchState
+    {
+        public required Process? Process; // UseShellExecute 启动 UWP/协议时可能拿不到进程对象，为 null 时只能靠时间兜底
+        public required DateTime FallbackDeadline;
+    }
+
+    private static readonly TimeSpan LaunchFallbackTimeout = TimeSpan.FromSeconds(10);
+    private readonly Dictionary<string, LaunchState> _launching = new();
+
     /// <summary>
     /// 切换目标应用窗口状态：最小化/隐藏 → 还原并置前；显示中 → 按配置最小化或隐藏；
     /// 进程未运行 → 按配置路径启动。
@@ -30,12 +43,33 @@ public sealed class WindowService
 
     private void ToggleCore(HotkeyEntry entry)
     {
+        var launchKey = entry.ProcessName ?? entry.ExePath;
         var hwnd = FindWindow(entry);
         if (hwnd == IntPtr.Zero)
         {
-            Launch(entry);
+            if (launchKey is not null && _launching.TryGetValue(launchKey, out var state))
+            {
+                var aliveOrUnknown = state.Process is null || !state.Process.HasExited;
+                if (aliveOrUnknown && DateTime.UtcNow < state.FallbackDeadline)
+                    return; // 仍在启动中：忽略本次触发，避免连按开出多个窗口
+
+                // 进程已退出（启动失败/闪退）或超过兜底超时：解除状态，允许重试
+                ClearLaunchState(launchKey);
+            }
+
+            // 只有真正启动了进程才记状态：启动失败时下次按键应再次尝试并提示错误
+            if (TryLaunch(entry, out var started) && launchKey is not null)
+                _launching[launchKey] = new LaunchState
+                {
+                    Process = started,
+                    FallbackDeadline = DateTime.UtcNow + LaunchFallbackTimeout,
+                };
             return;
         }
+
+        // 窗口已出现，启动成功，解除启动中状态
+        if (launchKey is not null)
+            ClearLaunchState(launchKey);
 
         if (!User32.IsWindowVisible(hwnd) || User32.IsIconic(hwnd))
         {
@@ -136,21 +170,35 @@ public sealed class WindowService
             User32.AttachThreadInput(currentThread, foregroundThread, false);
     }
 
-    private void Launch(HotkeyEntry entry)
+    private void ClearLaunchState(string launchKey)
     {
+        if (_launching.Remove(launchKey, out var state))
+            state.Process?.Dispose();
+    }
+
+    /// <summary>
+    /// 启动目标进程。返回 false 表示启动失败（已通过 <see cref="ErrorOccurred"/> 提示）；
+    /// 返回 true 时 <paramref name="started"/> 为启动的进程，壳启动拿不到进程对象时为 null。
+    /// </summary>
+    private bool TryLaunch(HotkeyEntry entry, out Process? started)
+    {
+        started = null;
         if (string.IsNullOrWhiteSpace(entry.ExePath) || !File.Exists(entry.ExePath))
         {
             ErrorOccurred?.Invoke($"未找到「{entry.ProcessName}」的窗口，且启动路径无效：{entry.ExePath}");
-            return;
+            return false;
         }
 
         try
         {
-            using var process = Process.Start(new ProcessStartInfo(entry.ExePath) { UseShellExecute = true });
+            // 进程句柄保留在 LaunchState 中用于 HasExited 自检，不能在这里 Dispose
+            started = Process.Start(new ProcessStartInfo(entry.ExePath) { UseShellExecute = true });
+            return true;
         }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
         {
             ErrorOccurred?.Invoke($"启动「{entry.ProcessName}」失败：{ex.Message}");
+            return false;
         }
     }
 }
