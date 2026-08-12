@@ -4,7 +4,7 @@ Windows 全局热键工具：按一个快捷键切换任意应用的显示/隐�
 
 ## 功能
 
-- 任意数量的「热键 → 应用」映射，全部写在 `%USERPROFILE%\.hotkeymanager.json` 里
+- 任意数量的「热键 → 应用」映射，全部写在 exe 同目录的 `config.json` 里
 - 应用未运行时自动按配置路径启动
 - 窗口最小化 → 还原并置前；显示中 → 最小化
 - 配置文件保存即热重载，无需重启
@@ -31,7 +31,7 @@ dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true 
 & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" installer/setup.iss
 ```
 
-产物为 `installer/HotkeyManagerSetup-<版本>.exe`：向导可自定义安装路径、可选开机自启/桌面快捷方式；配置保存在用户目录，卸载不受影响。
+产物为 `installer/HotkeyManagerSetup-<版本>.exe`：向导可自定义安装路径、可选开机自启/桌面快捷方式；配置保存在安装目录的 `config.json`，安装/卸载均不触碰。
 
 也可以用 `tools/build.ps1` 一键完成「改版本号 → 发布 → 打包」：
 
@@ -47,9 +47,9 @@ dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true 
 ./tools/bump-version.ps1 1.2.3   # 直接指定版本号
 ```
 
-## 配置说明（.hotkeymanager.json）
+## 配置说明（config.json）
 
-配置文件位于 `%USERPROFILE%\.hotkeymanager.json`（个人目录下的隐藏文件，与 mac 版一致），首次运行时自动写入默认模板（内容与仓库根目录 `config.json` 一致），保存即热重载：
+配置文件位于 exe 所在目录（安装目录）的 `config.json`，首次运行时自动写入默认模板（内容与仓库根目录 `config.json` 一致），保存即热重载：
 
 ```json
 {
@@ -84,7 +84,7 @@ src/HotkeyManager/
 │   └── WindowService.cs    # 窗口查找、显示/隐藏切换、置前
 ├── Config/
 │   ├── AppConfig.cs        # 配置模型
-│   └── ConfigManager.cs    # .hotkeymanager.json 加载与热重载
+│   └── ConfigManager.cs    # config.json 加载与热重载
 ├── Tray/
 │   └── TrayIcon.cs         # 托盘图标与右键菜单
 └── Interop/

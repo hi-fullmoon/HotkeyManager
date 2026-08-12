@@ -19,10 +19,8 @@ internal sealed class HotkeyAppContext : ApplicationContext
         // 强制在 UI 线程创建句柄，用于把配置文件的变更回调封送回 UI 线程
         _ = _marshaler.Handle;
 
-        // 与 mac 版一致：个人目录下的隐藏文件 %USERPROFILE%\.hotkeymanager.json
-        _configPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".hotkeymanager.json");
+        // 配置文件放在 exe 所在目录（安装目录），随程序一起走
+        _configPath = Path.Combine(AppContext.BaseDirectory, "config.json");
         _configManager = new ConfigManager(_configPath);
         _tray = new TrayIcon(OpenConfig, ApplyConfig, TogglePause,
             AutostartService.IsEnabled, SetAutostart, Exit);
@@ -57,7 +55,7 @@ internal sealed class HotkeyAppContext : ApplicationContext
         if (config is null)
         {
             // 配置损坏（常见原因：编辑器保存到一半触发了热重载），保持现有热键不动
-            _tray.ShowBalloon("配置解析失败", ".hotkeymanager.json 格式有误，已保持现有热键不变");
+            _tray.ShowBalloon("配置解析失败", "config.json 格式有误，已保持现有热键不变");
             return;
         }
 

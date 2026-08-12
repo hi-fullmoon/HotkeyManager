@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace HotkeyManager.Config;
 
-/// <summary>.hotkeymanager.json 的加载与热重载（FileSystemWatcher + 防抖）。</summary>
+/// <summary>config.json 的加载与热重载（FileSystemWatcher + 防抖）。</summary>
 public sealed class ConfigManager : IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
