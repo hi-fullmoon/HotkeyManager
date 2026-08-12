@@ -33,6 +33,11 @@ public sealed class TrayIcon : IDisposable
         _menu.Items.Add(autostartItem);
         _menu.Items.Add(new ToolStripSeparator());
         _menu.Items.Add("退出", null, (_, _) => exit());
+        _menu.Items.Add(new ToolStripSeparator());
+        _menu.Items.Add(new ToolStripMenuItem($"HotkeyManager v{Application.ProductVersion}")
+        {
+            Enabled = false
+        });
         Win11MenuStyle.Apply(_menu);
 
         _icon = new NotifyIcon

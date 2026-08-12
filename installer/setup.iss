@@ -4,7 +4,7 @@
 ;   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\setup.iss
 
 #define AppName "HotkeyManager"
-#define AppVersion "1.0.0"
+#define AppVersion "1.0.1"
 #define PublishDir "..\src\HotkeyManager\bin\Release\net8.0-windows\win-x64\publish"
 
 [Setup]
