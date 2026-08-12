@@ -34,7 +34,9 @@ public sealed class TrayIcon : IDisposable
         _menu.Items.Add(new ToolStripSeparator());
         _menu.Items.Add("退出", null, (_, _) => exit());
         _menu.Items.Add(new ToolStripSeparator());
-        _menu.Items.Add(new ToolStripMenuItem($"HotkeyManager v{Application.ProductVersion}")
+        // ProductVersion 会带上构建时追加的 git 哈希（v1.0.1+1d18ab...），去掉 + 后缀
+        var version = Application.ProductVersion.Split('+')[0];
+        _menu.Items.Add(new ToolStripMenuItem($"HotkeyManager v{version}")
         {
             Enabled = false
         });
