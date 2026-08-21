@@ -8,7 +8,8 @@ Windows 全局热键工具：按一个快捷键切换任意应用的显示/隐�
 - 应用未运行时自动按配置路径启动
 - 窗口最小化 → 还原并置前；显示中 → 最小化
 - 配置文件保存即热重载，无需重启
-- 系统托盘运行，右键菜单可打开配置 / 重载 / 暂停热键 / 开关开机自启 / 退出
+- 「设置快捷键」图形窗口：点击录制快捷键、文件选择器添加应用、移除、拖拽排序，保存后自动生效
+- 系统托盘运行，右键菜单可打开配置 / 设置快捷键 / 暂停热键 / 开关开机自启 / 退出
 
 ## 构建与运行（需在 Windows 上）
 
@@ -51,6 +52,8 @@ dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true 
 
 配置文件位于 exe 所在目录（安装目录）的 `config.json`，首次运行时自动写入默认模板（内容与仓库根目录 `config.json` 一致），保存即热重载：
 
+日常使用无需手写 JSON：右键托盘图标 →「设置快捷键」，选择应用的 `.exe` 后点击「未设置」即可录制。普通按键需搭配 `Ctrl` / `Alt` / `Shift` / `Win`，`F1`~`F24` 可单独使用；按 `Esc` 可取消录制。
+
 ```json
 {
   "hotkeys": [
@@ -61,7 +64,7 @@ dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true 
 
 | 字段 | 说明 |
 |------|------|
-| `key` | 组合键字符串，最后一段为按键，其余为修饰键（`Ctrl` / `Alt` / `Shift` / `Win`），如 `alt+1`、`ctrl+alt+a`。按键参考 WinForms `Keys` 枚举：`1`~`9`、`F1`~`F12`、`A`~`Z`、`NumPad0` 等 |
+| `key` | 组合键字符串，最后一段为按键，其余为修饰键（`Ctrl` / `Alt` / `Shift` / `Win`），如 `alt+1`、`ctrl+alt+a`。按键参考 WinForms `Keys` 枚举：`1`~`9`、`F1`~`F24`、`A`~`Z`、`NumPad0` 等 |
 | `processName` | 进程名，不含 `.exe` |
 | `exePath` | 进程未运行时用于启动的路径 |
 | `windowClass` | 可选。窗口类名（用 Spy++ / Window Detective 查看），填写后优先按类名查找，能定位到最小化到托盘的隐藏窗口 |
@@ -85,6 +88,9 @@ src/HotkeyManager/
 ├── Config/
 │   ├── AppConfig.cs        # 配置模型
 │   └── ConfigManager.cs    # config.json 加载与热重载
+├── Settings/
+│   ├── HotkeyListForm.cs   # 图形化设置窗口（录制 / 添加 / 移除 / 排序）
+│   └── HotkeyRecorder.cs   # 低级键盘钩子录制组合键
 ├── Tray/
 │   └── TrayIcon.cs         # 托盘图标与右键菜单
 └── Interop/

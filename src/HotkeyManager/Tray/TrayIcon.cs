@@ -8,7 +8,7 @@ public sealed class TrayIcon : IDisposable
     private readonly NotifyIcon _icon;
     private readonly ContextMenuStrip _menu;
 
-    public TrayIcon(Action openConfig, Action reloadConfig, Func<bool> togglePause,
+    public TrayIcon(Action openConfig, Action showSettings, Func<bool> togglePause,
         Func<bool> isAutostart, Action<bool> setAutostart, Action exit)
     {
         var pauseItem = new ToolStripMenuItem("暂停热键");
@@ -27,7 +27,7 @@ public sealed class TrayIcon : IDisposable
 
         _menu = new ContextMenuStrip();
         _menu.Items.Add("打开配置文件", null, (_, _) => openConfig());
-        _menu.Items.Add("重新加载配置", null, (_, _) => reloadConfig());
+        _menu.Items.Add("设置快捷键", null, (_, _) => showSettings());
         _menu.Items.Add(new ToolStripSeparator());
         _menu.Items.Add(pauseItem);
         _menu.Items.Add(autostartItem);
@@ -50,6 +50,7 @@ public sealed class TrayIcon : IDisposable
             Visible = true,
             ContextMenuStrip = _menu
         };
+        _icon.DoubleClick += (_, _) => showSettings();
     }
 
     public void ShowBalloon(string title, string message) =>

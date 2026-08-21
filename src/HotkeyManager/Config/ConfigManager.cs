@@ -7,7 +7,9 @@ public sealed class ConfigManager : IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = true
     };
 
     private readonly string _path;
@@ -48,6 +50,39 @@ public sealed class ConfigManager : IDisposable
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or NotSupportedException)
         {
             return null;
+        }
+    }
+
+    /// <summary>
+    /// 保存配置。先写入同目录临时文件再替换，避免文件监听器读到只写了一半的 JSON。
+    /// </summary>
+    public bool Save(AppConfig config)
+    {
+        var directory = Path.GetDirectoryName(_path)!;
+        var tempPath = Path.Combine(directory, $".{Path.GetFileName(_path)}.{Guid.NewGuid():N}.tmp");
+        try
+        {
+            var json = JsonSerializer.Serialize(config, JsonOptions) + Environment.NewLine;
+            File.WriteAllText(tempPath, json);
+            File.Move(tempPath, _path, overwrite: true);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HotkeyManager] 保存配置失败：{ex.Message}");
+            return false;
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(tempPath))
+                    File.Delete(tempPath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                System.Diagnostics.Debug.WriteLine($"[HotkeyManager] 清理临时配置失败：{ex.Message}");
+            }
         }
     }
 
