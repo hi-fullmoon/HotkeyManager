@@ -4,4 +4,5 @@ obj/
 *.user
 .dotnet/
 installer/HotkeyManagerSetup-*.exe
+dist/
 .DS_Store

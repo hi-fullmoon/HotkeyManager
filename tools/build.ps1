@@ -1,8 +1,8 @@
-# HotkeyManager 打包脚本：更新版本号（可选）→ dotnet publish → ISCC 编译安装包
+# HotkeyManager 打包脚本：更新版本与 Changelog（可选）→ dotnet publish → ISCC 编译安装包
 #
 # 用法：
 #   ./tools/build.ps1                 # 沿用当前版本号，直接打包
-#   ./tools/build.ps1 -Version 0.2.0  # 先把版本号改为 0.2.0（同步写入 csproj 和 setup.iss），再打包
+#   ./tools/build.ps1 -Version 1.1.0  # 先同步版本并归档 Changelog，再打包
 #
 # 产物：installer/HotkeyManagerSetup-<版本>.exe
 [CmdletBinding()]
@@ -21,7 +21,6 @@ $issPath    = Join-Path $root 'installer/setup.iss'
 if ($Version) {
     # 版本号写入逻辑统一在 bump-version.ps1 中维护
     & (Join-Path $PSScriptRoot 'bump-version.ps1') $Version
-    if ($LASTEXITCODE -ne 0) { throw "更新版本号失败（退出码 $LASTEXITCODE）" }
 }
 
 $csproj = [IO.File]::ReadAllText($csprojPath)

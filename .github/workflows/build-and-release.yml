@@ -1,0 +1,185 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  build:
+    name: Build and package
+    runs-on: windows-latest
+    timeout-minutes: 20
+    outputs:
+      artifact-name: ${{ steps.metadata.outputs.artifact-name }}
+      release-version: ${{ steps.metadata.outputs.release-version }}
+      changelog-version: ${{ steps.metadata.outputs.changelog-version }}
+      prerelease: ${{ steps.metadata.outputs.prerelease }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Resolve build metadata
+        id: metadata
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          [xml]$project = Get-Content 'src/HotkeyManager/HotkeyManager.csproj'
+          $projectVersion = [string]$project.Project.PropertyGroup.Version
+          if ($projectVersion -notmatch '^\d+\.\d+\.\d+$') {
+            throw "项目版本必须是 X.Y.Z：$projectVersion"
+          }
+
+          $releaseVersion = $projectVersion
+          $changelogVersion = $projectVersion
+          $artifactVersion = "$projectVersion-$($env:GITHUB_SHA.Substring(0, 7))"
+          $prerelease = 'false'
+
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            if ($env:GITHUB_REF_NAME -notmatch '^v(\d+\.\d+\.\d+)(-[0-9A-Za-z][0-9A-Za-z.-]*)?$') {
+              throw "Tag 必须符合 vX.Y.Z 或 vX.Y.Z-suffix：$env:GITHUB_REF_NAME"
+            }
+            $tagBaseVersion = $Matches[1]
+            if ($tagBaseVersion -ne $projectVersion) {
+              throw "Tag 版本 $tagBaseVersion 与项目版本 $projectVersion 不一致"
+            }
+
+            $releaseVersion = $env:GITHUB_REF_NAME.Substring(1)
+            $changelogVersion = $tagBaseVersion
+            $artifactVersion = $releaseVersion
+            if ($releaseVersion.Contains('-')) {
+              $prerelease = 'true'
+            }
+          }
+
+          $artifactName = "HotkeyManager-$artifactVersion-Windows-x64"
+          "artifact-name=$artifactName" >> $env:GITHUB_OUTPUT
+          "artifact-version=$artifactVersion" >> $env:GITHUB_OUTPUT
+          "project-version=$projectVersion" >> $env:GITHUB_OUTPUT
+          "release-version=$releaseVersion" >> $env:GITHUB_OUTPUT
+          "changelog-version=$changelogVersion" >> $env:GITHUB_OUTPUT
+          "prerelease=$prerelease" >> $env:GITHUB_OUTPUT
+
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            ./tools/changelog-section.ps1 $changelogVersion | Out-Null
+          }
+
+      - name: Restore and build
+        shell: pwsh
+        run: |
+          dotnet restore src/HotkeyManager/HotkeyManager.csproj
+          dotnet build src/HotkeyManager/HotkeyManager.csproj -c Release --no-restore
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Build release packages
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.metadata.outputs.project-version }}
+          ARTIFACT_VERSION: ${{ steps.metadata.outputs.artifact-version }}
+        run: ./tools/package-release.ps1
+
+      - name: Verify release packages
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = Get-ChildItem 'dist/*-Setup.exe' -File
+          $portable = Get-ChildItem 'dist/*-portable.zip' -File
+          if ($installer.Count -ne 1 -or $portable.Count -ne 1) {
+            throw '预期各生成一个安装包和便携 ZIP'
+          }
+
+          foreach ($asset in @($installer, $portable)) {
+            if ($asset.Length -le 0) { throw "空发布文件：$($asset.Name)" }
+            $checksumPath = "$($asset.FullName).sha256"
+            $expected = ((Get-Content $checksumPath -Raw).Trim() -split '\s+')[0]
+            $actual = (Get-FileHash $asset.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actual -ne $expected) { throw "SHA-256 校验失败：$($asset.Name)" }
+          }
+
+          $verifyDir = Join-Path $env:RUNNER_TEMP 'hotkeymanager-verify'
+          Expand-Archive $portable.FullName -DestinationPath $verifyDir
+          if (-not (Test-Path (Join-Path $verifyDir 'HotkeyManager.exe') -PathType Leaf)) {
+            throw '便携 ZIP 中缺少 HotkeyManager.exe'
+          }
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.metadata.outputs.artifact-name }}
+          path: |
+            dist/*.exe
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Download release packages
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.build.outputs.artifact-name }}
+          path: release-assets
+
+      - name: Create or update release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+          RELEASE_VERSION: ${{ needs.build.outputs.release-version }}
+          CHANGELOG_VERSION: ${{ needs.build.outputs.changelog-version }}
+          IS_PRERELEASE: ${{ needs.build.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          pwsh ./tools/changelog-section.ps1 "$CHANGELOG_VERSION" > release-notes.md
+          if gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$TAG_NAME" \
+              --title "HotkeyManager $RELEASE_VERSION" \
+              --notes-file release-notes.md \
+              --repo "$GITHUB_REPOSITORY"
+            gh release upload "$TAG_NAME" release-assets/* \
+              --clobber \
+              --repo "$GITHUB_REPOSITORY"
+          else
+            release_args=(
+              "$TAG_NAME"
+              release-assets/*
+              --title "HotkeyManager $RELEASE_VERSION"
+              --notes-file release-notes.md
+              --verify-tag
+              --repo "$GITHUB_REPOSITORY"
+            )
+            if [[ "$IS_PRERELEASE" == "true" ]]; then
+              release_args+=(--prerelease)
+            fi
+            gh release create "${release_args[@]}"
+          fi

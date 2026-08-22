@@ -38,15 +38,42 @@ dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true 
 
 ```powershell
 ./tools/build.ps1                 # 沿用当前版本号直接打包
-./tools/build.ps1 -Version 0.2.0  # 版本号写入 csproj 和 setup.iss 后再打包
+./tools/build.ps1 -Version 1.1.0  # 同步版本、归档 Changelog 后再打包
 ```
 
-只改版本号不打包时用 `tools/bump-version.ps1`：
+构建完整发布包：
 
 ```powershell
-./tools/bump-version.ps1 patch   # 0.1.0 -> 0.1.1（也支持 minor / major）
-./tools/bump-version.ps1 1.2.3   # 直接指定版本号
+./tools/package-release.ps1
 ```
+
+产物位于 `dist/`：
+
+- `HotkeyManager-<版本>-Windows-x64-Setup.exe`：安装包
+- `HotkeyManager-<版本>-Windows-x64-portable.zip`：便携版
+- 每个产物对应的 `.sha256` 校验文件
+
+## 自动构建与发布
+
+GitHub Actions 会在以下情况运行：
+
+- Pull Request 和 `main` 分支提交：构建安装包与便携版，并保留 14 天的构建产物。
+- 推送 `vX.Y.Z` 标签：创建 GitHub Release，上传安装包、便携版和 SHA-256 文件，并使用对应 Changelog 作为发布说明。
+- 推送 `vX.Y.Z-suffix` 标签：例如 `v1.1.0-beta.1`，发布为 pre-release。
+
+发布前先在 `[Unreleased]` 记录变更，再更新版本并归档 Changelog：
+
+```powershell
+# 先把本次变更写入 CHANGELOG.md 的 [Unreleased]
+./tools/bump-version.ps1 minor   # 也支持 major / patch / 直接指定 X.Y.Z
+
+git add src/HotkeyManager/HotkeyManager.csproj installer/setup.iss CHANGELOG.md
+git commit -m "chore: bump version to 1.1.0"
+git tag v1.1.0
+git push origin main v1.1.0
+```
+
+`bump-version.ps1` 会同步项目与安装器版本，并将 `[Unreleased]` 归档为带日期的新版本。可使用 `-Date YYYY-MM-DD` 指定日期、`-SkipChangelog` 仅更新版本文件，或用 `-DryRun` 预览。工作流会校验 tag 与项目版本一致，避免误发版本。
 
 ## 配置说明（config.json）
 
