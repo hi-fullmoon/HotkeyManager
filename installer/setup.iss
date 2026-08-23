@@ -4,7 +4,7 @@
 ;   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\setup.iss
 
 #define AppName "HotkeyManager"
-#define AppVersion "1.0.3"
+#define AppVersion "1.0.4"
 #define PublishDir "..\src\HotkeyManager\bin\Release\net8.0-windows\win-x64\publish"
 
 [Setup]
@@ -34,7 +34,7 @@ Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: 
 
 [Files]
 Source: "{#PublishDir}\HotkeyManager.exe"; DestDir: "{app}"; Flags: ignoreversion
-; 用户配置为 {app}\config.json，首次运行自动生成，安装/卸载均不触碰
+; 用户配置为 {app}\config.jsonc，首次运行自动生成，安装/卸载均不触碰
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\HotkeyManager.exe"

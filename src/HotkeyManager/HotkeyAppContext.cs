@@ -1,7 +1,7 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using HotkeyManager.Config;
 using HotkeyManager.Core;
-using HotkeyManager.Settings;
 using HotkeyManager.Tray;
 
 namespace HotkeyManager;
@@ -14,7 +14,6 @@ internal sealed class HotkeyAppContext : ApplicationContext
     private readonly WindowService _windowService = new();
     private readonly ConfigManager _configManager;
     private readonly TrayIcon _tray;
-    private HotkeyListForm? _settingsForm;
 
     public HotkeyAppContext()
     {
@@ -22,9 +21,9 @@ internal sealed class HotkeyAppContext : ApplicationContext
         _ = _marshaler.Handle;
 
         // 配置文件放在 exe 所在目录（安装目录），随程序一起走
-        _configPath = Path.Combine(AppContext.BaseDirectory, "config.json");
+        _configPath = Path.Combine(AppContext.BaseDirectory, "config.jsonc");
         _configManager = new ConfigManager(_configPath);
-        _tray = new TrayIcon(OpenConfig, ShowSettings, TogglePause,
+        _tray = new TrayIcon(OpenConfig, TogglePause,
             AutostartService.IsEnabled, SetAutostart, Exit);
         _windowService.ErrorOccurred += msg => _tray.ShowBalloon("HotkeyManager", msg);
 
@@ -37,7 +36,6 @@ internal sealed class HotkeyAppContext : ApplicationContext
                 _marshaler.BeginInvoke(new Action(() =>
                 {
                     ApplyConfig(showSummary: false);
-                    _settingsForm?.ReloadFromDisk();
                 }));
             }
             catch (Exception ex) when (ex is ObjectDisposedException or InvalidOperationException)
@@ -49,7 +47,6 @@ internal sealed class HotkeyAppContext : ApplicationContext
     }
 
     private bool _paused;
-    private bool _recording;
     private bool _disposed;
 
     private void ApplyConfig(bool showSummary)
@@ -62,7 +59,7 @@ internal sealed class HotkeyAppContext : ApplicationContext
         if (config is null)
         {
             // 配置损坏（常见原因：编辑器保存到一半触发了热重载），保持现有热键不动
-            _tray.ShowBalloon("配置解析失败", "config.json 格式有误，已保持现有热键不变");
+            _tray.ShowBalloon("配置解析失败", "config.jsonc 格式有误，已保持现有热键不变");
             return;
         }
 
@@ -76,7 +73,7 @@ internal sealed class HotkeyAppContext : ApplicationContext
                 continue;
             }
 
-            // 图形界面添加应用后会先保存一个“未设置”条目，等用户随后录制快捷键。
+            // 允许用户暂时保留尚未设置快捷键的条目。
             if (string.IsNullOrWhiteSpace(entry.Key))
                 continue;
 
@@ -94,7 +91,7 @@ internal sealed class HotkeyAppContext : ApplicationContext
         _hotkeyService.UnregisterAll();
 
         // 暂停状态下不注册：热重载只校验配置，按键保持释放状态
-        if (_paused || _recording)
+        if (_paused)
             return;
 
         var registered = 0;
@@ -138,45 +135,23 @@ internal sealed class HotkeyAppContext : ApplicationContext
 
     private void OpenConfig()
     {
-        // UseShellExecute 打开文件时可能返回 null（壳关联启动），可空 Dispose 即可
-        Process.Start(new ProcessStartInfo(_configPath) { UseShellExecute = true })?.Dispose();
-    }
-
-    private void ShowSettings()
-    {
-        if (_settingsForm is null || _settingsForm.IsDisposed)
+        try
         {
-            _settingsForm = new HotkeyListForm(
-                _configManager,
-                SetRecording,
-                () => ApplyConfig(showSummary: false));
-            _settingsForm.FormClosed += (_, _) => _settingsForm = null;
+            // 优先使用用户为 .jsonc 配置的默认编辑器。
+            Process.Start(new ProcessStartInfo(_configPath) { UseShellExecute = true })?.Dispose();
         }
-
-        if (_settingsForm.WindowState == FormWindowState.Minimized)
-            _settingsForm.WindowState = FormWindowState.Normal;
-        _settingsForm.Show();
-        _settingsForm.Activate();
-    }
-
-    /// <summary>录制期间注销全局热键；录制结束后按当前配置恢复（原本处于暂停状态时不恢复）。</summary>
-    private void SetRecording(bool recording)
-    {
-        _recording = recording;
-        if (recording)
+        catch (Win32Exception)
         {
-            _hotkeyService.UnregisterAll();
-        }
-        else if (!_paused)
-        {
-            ApplyConfig(showSummary: false);
+            // 纯净 Windows 可能没有 .jsonc 文件关联，此时保证仍能用记事本编辑。
+            var fallback = new ProcessStartInfo("notepad.exe") { UseShellExecute = true };
+            fallback.ArgumentList.Add(_configPath);
+            Process.Start(fallback)?.Dispose();
         }
     }
 
     private void Exit()
     {
         _disposed = true; // 先置位，防抖回调触发的 ApplyConfig 会直接忽略
-        _settingsForm?.Close();
         _tray.Dispose();
         _hotkeyService.Dispose();
         _configManager.Dispose();

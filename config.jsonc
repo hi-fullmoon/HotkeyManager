@@ -1,0 +1,22 @@
+{
+  // 在 hotkeys 数组中添加任意数量的「快捷键 → 应用」配置。
+  // 支持 // 或 /* */ 注释，也允许末尾逗号；保存后会自动重新加载。
+  "hotkeys": [
+    // 示例：删除下面 6 行开头的 //，再按实际安装位置修改即可启用。
+    // {
+    //   "key": "ctrl+alt+1",
+    //   "processName": "notepad",
+    //   "exePath": "C:\\Windows\\System32\\notepad.exe",
+    //   "windowClass": ""
+    // }
+  ],
+}
+
+// 字段说明：
+// key         快捷键，格式为 ctrl+alt+1；支持 Ctrl / Alt / Shift / Win，F1~F24 可单独使用。
+// processName 进程名，不包含 .exe。程序会用它查找已经运行的应用。
+// exePath     可执行文件完整路径。应用未运行时，程序会从这里启动它。
+// windowClass 可选的窗口类名。通常留空；需要精确匹配特殊窗口时再填写。
+//
+// Windows 路径中的反斜杠必须写成两个，例如 C:\\Program Files\\App\\App.exe。
+// 暂时停用某一项时，可在该对象的每一行前添加 //，或直接删除该对象。

@@ -4,12 +4,12 @@ Windows 全局热键工具：按一个快捷键切换任意应用的显示/隐�
 
 ## 功能
 
-- 任意数量的「热键 → 应用」映射，全部写在 exe 同目录的 `config.json` 里
+- 任意数量的「热键 → 应用」映射，全部写在 exe 同目录的 `config.jsonc` 里
 - 应用未运行时自动按配置路径启动
 - 窗口最小化 → 还原并置前；显示中 → 最小化
 - 配置文件保存即热重载，无需重启
-- 「设置快捷键」图形窗口：点击录制快捷键、文件选择器添加应用、移除、拖拽排序，保存后自动生效
-- 系统托盘运行，右键菜单可打开配置 / 设置快捷键 / 暂停热键 / 开关开机自启 / 退出
+- 配置支持注释和尾随逗号，默认模板内置字段说明与可复制示例
+- 系统托盘运行，右键菜单可打开配置 / 暂停热键 / 开关开机自启 / 退出；双击托盘图标也可打开配置
 
 ## 构建与运行（需在 Windows 上）
 
@@ -32,7 +32,7 @@ dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true 
 & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" installer/setup.iss
 ```
 
-产物为 `installer/HotkeyManagerSetup-<版本>.exe`：向导可自定义安装路径、可选开机自启/桌面快捷方式；配置保存在安装目录的 `config.json`，安装/卸载均不触碰。
+产物为 `installer/HotkeyManagerSetup-<版本>.exe`：向导可自定义安装路径、可选开机自启/桌面快捷方式；配置保存在安装目录的 `config.jsonc`，安装/卸载均不触碰。
 
 也可以用 `tools/build.ps1` 一键完成「改版本号 → 发布 → 打包」：
 
@@ -75,23 +75,27 @@ git push origin main v1.1.0
 
 `bump-version.ps1` 会同步项目与安装器版本，并将 `[Unreleased]` 归档为带日期的新版本。可使用 `-Date YYYY-MM-DD` 指定日期、`-SkipChangelog` 仅更新版本文件，或用 `-DryRun` 预览。工作流会校验 tag 与项目版本一致，避免误发版本。
 
-## 配置说明（config.json）
+## 配置说明（config.jsonc）
 
-配置文件位于 exe 所在目录（安装目录）的 `config.json`，首次运行时自动写入默认模板（内容与仓库根目录 `config.json` 一致），保存即热重载：
+配置文件位于 exe 所在目录（安装目录）的 `config.jsonc`，首次运行时自动写入带注释的引导模板（内容与仓库根目录 `config.jsonc` 一致），保存即热重载。右键托盘图标选择「打开配置文件」，或直接双击托盘图标即可编辑。
 
-日常使用无需手写 JSON：右键托盘图标 →「设置快捷键」，选择应用的 `.exe` 后点击「未设置」即可录制。普通按键需搭配 `Ctrl` / `Alt` / `Shift` / `Win`，`F1`~`F24` 可单独使用；按 `Esc` 可取消录制。
-
-```json
+```jsonc
 {
+  // 可以添加任意数量的配置对象；末尾逗号也是允许的。
   "hotkeys": [
-    { "key": "alt+1", "processName": "WeChat", "exePath": "C:\\Program Files\\Tencent\\WeChat\\WeChat.exe" }
+    {
+      "key": "ctrl+alt+1",
+      "processName": "notepad",
+      "exePath": "C:\\Windows\\System32\\notepad.exe",
+      "windowClass": "",
+    },
   ]
 }
 ```
 
 | 字段 | 说明 |
 |------|------|
-| `key` | 组合键字符串，最后一段为按键，其余为修饰键（`Ctrl` / `Alt` / `Shift` / `Win`），如 `alt+1`、`ctrl+alt+a`。按键参考 WinForms `Keys` 枚举：`1`~`9`、`F1`~`F24`、`A`~`Z`、`NumPad0` 等 |
+| `key` | 组合键字符串，最后一段为按键，其余为修饰键（`Ctrl` / `Alt` / `Shift` / `Win`），如 `alt+1`、`ctrl+alt+a`。普通按键建议搭配至少一个修饰键，`F1`~`F24` 可单独使用；按键还支持 `A`~`Z`、`NumPad0` 等 WinForms `Keys` 名称 |
 | `processName` | 进程名，不含 `.exe` |
 | `exePath` | 进程未运行时用于启动的路径 |
 | `windowClass` | 可选。窗口类名（用 Spy++ / Window Detective 查看），填写后优先按类名查找，能定位到最小化到托盘的隐藏窗口 |
@@ -114,10 +118,7 @@ src/HotkeyManager/
 │   └── WindowService.cs    # 窗口查找、显示/隐藏切换、置前
 ├── Config/
 │   ├── AppConfig.cs        # 配置模型
-│   └── ConfigManager.cs    # config.json 加载与热重载
-├── Settings/
-│   ├── HotkeyListForm.cs   # 图形化设置窗口（录制 / 添加 / 移除 / 排序）
-│   └── HotkeyRecorder.cs   # 低级键盘钩子录制组合键
+│   └── ConfigManager.cs    # config.jsonc 加载与热重载
 ├── Tray/
 │   └── TrayIcon.cs         # 托盘图标与右键菜单
 └── Interop/

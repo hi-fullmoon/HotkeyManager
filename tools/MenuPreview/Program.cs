@@ -14,7 +14,6 @@ internal static class Program
         // 真实 TrayIcon + 空回调；通过反射取出内部菜单来展示
         using var tray = new TrayIcon(
             openConfig: () => { },
-            reloadConfig: () => { },
             togglePause: () => true,
             isAutostart: () => true,
             setAutostart: _ => { },

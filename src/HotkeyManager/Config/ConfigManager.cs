@@ -2,14 +2,15 @@ using System.Text.Json;
 
 namespace HotkeyManager.Config;
 
-/// <summary>config.json 的加载与热重载（FileSystemWatcher + 防抖）。</summary>
+/// <summary>config.jsonc 的加载与热重载（FileSystemWatcher + 防抖）。</summary>
 public sealed class ConfigManager : IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = true
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true
     };
 
     private readonly string _path;
@@ -22,7 +23,7 @@ public sealed class ConfigManager : IDisposable
     public ConfigManager(string path)
     {
         _path = path;
-        SaveDefaultIfNeeded();
+        CreateConfigIfNeeded();
 
         _debounceTimer = new System.Threading.Timer(_ => Changed?.Invoke(), null, Timeout.Infinite, Timeout.Infinite);
 
@@ -39,7 +40,7 @@ public sealed class ConfigManager : IDisposable
     private void OnFileChanged(object sender, FileSystemEventArgs e) =>
         _debounceTimer.Change(300, Timeout.Infinite);
 
-    /// <summary>读取配置；文件缺失/损坏（如保存到一半的 JSON）时返回 null，调用方应保持现状。</summary>
+    /// <summary>读取配置；支持 JSONC 注释和尾随逗号。文件缺失或损坏时返回 null。</summary>
     public AppConfig? Load()
     {
         try
@@ -53,44 +54,12 @@ public sealed class ConfigManager : IDisposable
         }
     }
 
-    /// <summary>
-    /// 保存配置。先写入同目录临时文件再替换，避免文件监听器读到只写了一半的 JSON。
-    /// </summary>
-    public bool Save(AppConfig config)
-    {
-        var directory = Path.GetDirectoryName(_path)!;
-        var tempPath = Path.Combine(directory, $".{Path.GetFileName(_path)}.{Guid.NewGuid():N}.tmp");
-        try
-        {
-            var json = JsonSerializer.Serialize(config, JsonOptions) + Environment.NewLine;
-            File.WriteAllText(tempPath, json);
-            File.Move(tempPath, _path, overwrite: true);
-            return true;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
-        {
-            System.Diagnostics.Debug.WriteLine($"[HotkeyManager] 保存配置失败：{ex.Message}");
-            return false;
-        }
-        finally
-        {
-            try
-            {
-                if (File.Exists(tempPath))
-                    File.Delete(tempPath);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                System.Diagnostics.Debug.WriteLine($"[HotkeyManager] 清理临时配置失败：{ex.Message}");
-            }
-        }
-    }
-
-    /// <summary>首次运行时写入默认模板。</summary>
-    private void SaveDefaultIfNeeded()
+    /// <summary>首次运行时写入带注释的引导模板。</summary>
+    private void CreateConfigIfNeeded()
     {
         if (File.Exists(_path))
             return;
+
         try
         {
             File.WriteAllText(_path, DefaultTemplate);
@@ -102,17 +71,30 @@ public sealed class ConfigManager : IDisposable
         }
     }
 
-    /// <summary>默认配置模板（与仓库根目录 config.json 保持一致）。</summary>
+    /// <summary>默认配置模板（与仓库根目录 config.jsonc 保持一致）。</summary>
     private const string DefaultTemplate = """
     {
+      // 在 hotkeys 数组中添加任意数量的「快捷键 → 应用」配置。
+      // 支持 // 或 /* */ 注释，也允许末尾逗号；保存后会自动重新加载。
       "hotkeys": [
-        { "key": "alt+1", "processName": "WeChat", "exePath": "C:\\Program Files\\Tencent\\WeChat\\WeChat.exe" },
-        { "key": "alt+2", "processName": "chrome", "exePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" },
-        { "key": "alt+3", "processName": "WindowsTerminal", "exePath": "C:\\Users\\<用户名>\\AppData\\Local\\Microsoft\\WindowsApps\\wt.exe" },
-        { "key": "alt+4", "processName": "Code", "exePath": "C:\\Program Files\\Microsoft VS Code\\Code.exe" },
-        { "key": "alt+5", "processName": "Obsidian", "exePath": "C:\\Program Files\\Obsidian\\Obsidian.exe" }
-      ]
+        // 示例：删除下面 6 行开头的 //，再按实际安装位置修改即可启用。
+        // {
+        //   "key": "ctrl+alt+1",
+        //   "processName": "notepad",
+        //   "exePath": "C:\\Windows\\System32\\notepad.exe",
+        //   "windowClass": ""
+        // }
+      ],
     }
+
+    // 字段说明：
+    // key         快捷键，格式为 ctrl+alt+1；支持 Ctrl / Alt / Shift / Win，F1~F24 可单独使用。
+    // processName 进程名，不包含 .exe。程序会用它查找已经运行的应用。
+    // exePath     可执行文件完整路径。应用未运行时，程序会从这里启动它。
+    // windowClass 可选的窗口类名。通常留空；需要精确匹配特殊窗口时再填写。
+    //
+    // Windows 路径中的反斜杠必须写成两个，例如 C:\\Program Files\\App\\App.exe。
+    // 暂时停用某一项时，可在该对象的每一行前添加 //，或直接删除该对象。
     """;
 
     public void Dispose()

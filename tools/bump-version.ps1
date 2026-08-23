@@ -75,7 +75,7 @@ if (-not $SkipChangelog) {
     $replacement = "## [Unreleased]$lineEnding$lineEnding## [$newVersion] - $Date"
     $updatedChangelog = [regex]::Replace(
         $changelog,
-        '(?m)^## \[Unreleased\][ \t]*$',
+        '(?m)^## \[Unreleased\][ \t]*\r?$',
         $replacement,
         1)
 }
