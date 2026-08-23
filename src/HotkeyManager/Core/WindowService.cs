@@ -6,23 +6,36 @@ using HotkeyManager.Interop;
 namespace HotkeyManager.Core;
 
 /// <summary>窗口查找与"显示 ↔ 隐藏"切换。</summary>
-public sealed class WindowService
+public sealed class WindowService : IDisposable
 {
     /// <summary>操作失败时触发（参数为用户可读的提示信息），由上层决定如何展示。</summary>
     public event Action<string>? ErrorOccurred;
 
     // 启动中状态：目标程序启动到窗口出现需要时间，期间连按热键会反复走进 Launch 打开多个窗口。
-    // 记录启动的进程对象用于自检——进程已退出说明启动失败/闪退，允许立即重试；
+    // 只记录启动进程 ID 用于自检，不长期持有 Process 对象和原生句柄；
+    // 进程已退出说明启动失败/闪退，允许立即重试；
     // 窗口一旦出现 FindWindow 就能命中，状态随之解除。时间仅作兜底：进程卡死一直不出窗口时允许重试。
     // Toggle 始终在 UI 线程（WndProc 同步）调用，无需加锁。
     private sealed class LaunchState
     {
-        public required Process? Process; // UseShellExecute 启动 UWP/协议时可能拿不到进程对象，为 null 时只能靠时间兜底
+        public required int? ProcessId; // 壳启动拿不到进程 ID 时为 null，只能靠时间兜底
         public required DateTime FallbackDeadline;
     }
 
+    private readonly record struct CachedWindow(IntPtr Handle, uint ProcessId);
+
     private static readonly TimeSpan LaunchFallbackTimeout = TimeSpan.FromSeconds(10);
     private readonly Dictionary<string, LaunchState> _launching = new();
+    private readonly Dictionary<HotkeyEntry, CachedWindow> _windowCache = new();
+    private readonly System.Windows.Forms.Timer _launchCleanupTimer = new()
+    {
+        Interval = (int)LaunchFallbackTimeout.TotalMilliseconds
+    };
+
+    public WindowService()
+    {
+        _launchCleanupTimer.Tick += (_, _) => PruneExpiredLaunchStates();
+    }
 
     /// <summary>
     /// 切换目标应用窗口状态：最小化/隐藏 → 还原并置前；显示中 → 按配置最小化或隐藏；
@@ -43,13 +56,15 @@ public sealed class WindowService
 
     private void ToggleCore(HotkeyEntry entry)
     {
-        var launchKey = entry.ProcessName ?? entry.ExePath;
+        var launchKey = !string.IsNullOrWhiteSpace(entry.ProcessName)
+            ? entry.ProcessName
+            : string.IsNullOrWhiteSpace(entry.ExePath) ? null : entry.ExePath;
         var hwnd = FindWindow(entry);
         if (hwnd == IntPtr.Zero)
         {
             if (launchKey is not null && _launching.TryGetValue(launchKey, out var state))
             {
-                var aliveOrUnknown = state.Process is null || !state.Process.HasExited;
+                var aliveOrUnknown = state.ProcessId is null || IsProcessAlive(state.ProcessId.Value);
                 if (aliveOrUnknown && DateTime.UtcNow < state.FallbackDeadline)
                     return; // 仍在启动中：忽略本次触发，避免连按开出多个窗口
 
@@ -58,12 +73,15 @@ public sealed class WindowService
             }
 
             // 只有真正启动了进程才记状态：启动失败时下次按键应再次尝试并提示错误
-            if (TryLaunch(entry, out var started) && launchKey is not null)
+            if (TryLaunch(entry, out var processId) && launchKey is not null)
+            {
                 _launching[launchKey] = new LaunchState
                 {
-                    Process = started,
+                    ProcessId = processId,
                     FallbackDeadline = DateTime.UtcNow + LaunchFallbackTimeout,
                 };
+                _launchCleanupTimer.Start();
+            }
             return;
         }
 
@@ -87,14 +105,24 @@ public sealed class WindowService
         }
     }
 
-    private static IntPtr FindWindow(HotkeyEntry entry)
+    private IntPtr FindWindow(HotkeyEntry entry)
     {
+        if (_windowCache.TryGetValue(entry, out var cached))
+        {
+            if (User32.IsWindow(cached.Handle)
+                && User32.GetWindowThreadProcessId(cached.Handle, out var currentProcessId) != 0
+                && currentProcessId == cached.ProcessId)
+                return cached.Handle;
+
+            _windowCache.Remove(entry);
+        }
+
         // 优先按窗口类名查找：FindWindow 能找到被隐藏（最小化到托盘）的窗口
         if (!string.IsNullOrWhiteSpace(entry.WindowClass))
         {
             var hwnd = User32.FindWindow(entry.WindowClass, null);
             if (hwnd != IntPtr.Zero)
-                return hwnd;
+                return CacheWindow(entry, hwnd);
         }
 
         if (!string.IsNullOrWhiteSpace(entry.ProcessName))
@@ -104,16 +132,23 @@ public sealed class WindowService
                 using (process)
                 {
                     if (process.MainWindowHandle != IntPtr.Zero)
-                        return process.MainWindowHandle;
+                        return CacheWindow(entry, process.MainWindowHandle);
 
                     var hwnd = FindWindowByProcessId((uint)process.Id);
                     if (hwnd != IntPtr.Zero)
-                        return hwnd;
+                        return CacheWindow(entry, hwnd);
                 }
             }
         }
 
         return IntPtr.Zero;
+    }
+
+    private IntPtr CacheWindow(HotkeyEntry entry, IntPtr hwnd)
+    {
+        if (User32.GetWindowThreadProcessId(hwnd, out var processId) != 0)
+            _windowCache[entry] = new CachedWindow(hwnd, processId);
+        return hwnd;
     }
 
     private static IntPtr FindWindowByProcessId(uint processId)
@@ -172,17 +207,54 @@ public sealed class WindowService
 
     private void ClearLaunchState(string launchKey)
     {
-        if (_launching.Remove(launchKey, out var state))
-            state.Process?.Dispose();
+        _launching.Remove(launchKey);
+        if (_launching.Count == 0)
+            _launchCleanupTimer.Stop();
+    }
+
+    private void PruneExpiredLaunchStates()
+    {
+        var now = DateTime.UtcNow;
+        List<string>? expiredKeys = null;
+        foreach (var (key, state) in _launching)
+        {
+            if (now < state.FallbackDeadline)
+                continue;
+
+            expiredKeys ??= new List<string>();
+            expiredKeys.Add(key);
+        }
+
+        if (expiredKeys is not null)
+        {
+            foreach (var key in expiredKeys)
+                _launching.Remove(key);
+        }
+
+        if (_launching.Count == 0)
+            _launchCleanupTimer.Stop();
+    }
+
+    private static bool IsProcessAlive(int processId)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(processId);
+            return !process.HasExited;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or Win32Exception)
+        {
+            return false;
+        }
     }
 
     /// <summary>
     /// 启动目标进程。返回 false 表示启动失败（已通过 <see cref="ErrorOccurred"/> 提示）；
-    /// 返回 true 时 <paramref name="started"/> 为启动的进程，壳启动拿不到进程对象时为 null。
+    /// 返回 true 时 <paramref name="processId"/> 为启动的进程 ID，壳启动拿不到时为 null。
     /// </summary>
-    private bool TryLaunch(HotkeyEntry entry, out Process? started)
+    private bool TryLaunch(HotkeyEntry entry, out int? processId)
     {
-        started = null;
+        processId = null;
         if (string.IsNullOrWhiteSpace(entry.ExePath) || !File.Exists(entry.ExePath))
         {
             ErrorOccurred?.Invoke($"未找到「{entry.ProcessName}」的窗口，且启动路径无效：{entry.ExePath}");
@@ -191,8 +263,18 @@ public sealed class WindowService
 
         try
         {
-            // 进程句柄保留在 LaunchState 中用于 HasExited 自检，不能在这里 Dispose
-            started = Process.Start(new ProcessStartInfo(entry.ExePath) { UseShellExecute = true });
+            using var started = Process.Start(new ProcessStartInfo(entry.ExePath) { UseShellExecute = true });
+            if (started is not null)
+            {
+                try
+                {
+                    processId = started.Id;
+                }
+                catch (InvalidOperationException)
+                {
+                    // 壳启动成功但未返回可查询的进程对象，按未知存活状态处理。
+                }
+            }
             return true;
         }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
@@ -200,5 +282,19 @@ public sealed class WindowService
             ErrorOccurred?.Invoke($"启动「{entry.ProcessName}」失败：{ex.Message}");
             return false;
         }
+    }
+
+    /// <summary>配置或暂停状态变化时释放不再需要的缓存。</summary>
+    internal void ResetCaches()
+    {
+        _launchCleanupTimer.Stop();
+        _launching.Clear();
+        _windowCache.Clear();
+    }
+
+    public void Dispose()
+    {
+        ResetCaches();
+        _launchCleanupTimer.Dispose();
     }
 }

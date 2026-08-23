@@ -7,6 +7,8 @@ public sealed class TrayIcon : IDisposable
 {
     private readonly NotifyIcon _icon;
     private readonly ContextMenuStrip _menu;
+    private readonly Icon _appIcon;
+    private readonly Font _menuFont;
 
     public TrayIcon(Action openConfig, Func<bool> togglePause,
         Func<bool> isAutostart, Action<bool> setAutostart, Action exit)
@@ -39,12 +41,13 @@ public sealed class TrayIcon : IDisposable
         {
             Enabled = false
         });
-        Win11MenuStyle.Apply(_menu);
+        _menuFont = Win11MenuStyle.Apply(_menu);
+        _appIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath)!;
 
         _icon = new NotifyIcon
         {
             // 复用嵌入 exe 的应用图标，避免再分发一份 .ico 文件
-            Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath)!,
+            Icon = _appIcon,
             Text = "HotkeyManager 全局热键",
             Visible = true,
             ContextMenuStrip = _menu
@@ -60,5 +63,7 @@ public sealed class TrayIcon : IDisposable
         _icon.Visible = false;
         _icon.Dispose();
         _menu.Dispose();
+        _menuFont.Dispose();
+        _appIcon.Dispose();
     }
 }

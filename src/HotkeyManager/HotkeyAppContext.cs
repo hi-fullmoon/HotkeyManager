@@ -14,6 +14,7 @@ internal sealed class HotkeyAppContext : ApplicationContext
     private readonly WindowService _windowService = new();
     private readonly ConfigManager _configManager;
     private readonly TrayIcon _tray;
+    private readonly Action _applyChangedConfig;
 
     public HotkeyAppContext()
     {
@@ -23,6 +24,7 @@ internal sealed class HotkeyAppContext : ApplicationContext
         // 配置文件放在 exe 所在目录（安装目录），随程序一起走
         _configPath = Path.Combine(AppContext.BaseDirectory, "config.jsonc");
         _configManager = new ConfigManager(_configPath);
+        _applyChangedConfig = () => ApplyConfig(showSummary: false);
         _tray = new TrayIcon(OpenConfig, TogglePause,
             AutostartService.IsEnabled, SetAutostart, Exit);
         _windowService.ErrorOccurred += msg => _tray.ShowBalloon("HotkeyManager", msg);
@@ -33,10 +35,7 @@ internal sealed class HotkeyAppContext : ApplicationContext
         {
             try
             {
-                _marshaler.BeginInvoke(new Action(() =>
-                {
-                    ApplyConfig(showSummary: false);
-                }));
+                _marshaler.BeginInvoke(_applyChangedConfig);
             }
             catch (Exception ex) when (ex is ObjectDisposedException or InvalidOperationException)
             {
@@ -63,9 +62,11 @@ internal sealed class HotkeyAppContext : ApplicationContext
             return;
         }
 
+        _windowService.ResetCaches();
+
         // 先解析全部条目，再统一注销重注册——避免某条配置错误导致已有热键全部失效
-        var parsed = new List<(uint Modifiers, uint VirtualKey, HotkeyEntry Entry)>();
-        foreach (var entry in config.Hotkeys ?? new List<HotkeyEntry>())
+        var parsed = new List<(uint Modifiers, uint VirtualKey, HotkeyEntry Entry)>(config.Hotkeys?.Count ?? 0);
+        foreach (var entry in config.Hotkeys ?? Enumerable.Empty<HotkeyEntry>())
         {
             if (entry is null)
             {
@@ -118,6 +119,7 @@ internal sealed class HotkeyAppContext : ApplicationContext
         if (_paused)
         {
             _hotkeyService.UnregisterAll();
+            _windowService.ResetCaches();
             _tray.ShowBalloon("HotkeyManager", "热键已暂停，所有快捷键已释放");
         }
         else
@@ -154,6 +156,7 @@ internal sealed class HotkeyAppContext : ApplicationContext
         _disposed = true; // 先置位，防抖回调触发的 ApplyConfig 会直接忽略
         _tray.Dispose();
         _hotkeyService.Dispose();
+        _windowService.Dispose();
         _configManager.Dispose();
         _marshaler.Dispose();
         Application.Exit();

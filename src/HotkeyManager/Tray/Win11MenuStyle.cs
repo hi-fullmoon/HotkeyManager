@@ -12,12 +12,13 @@ namespace HotkeyManager.Tray;
 /// </summary>
 public static class Win11MenuStyle
 {
-    public static void Apply(ContextMenuStrip menu)
+    public static Font Apply(ContextMenuStrip menu)
     {
         var dark = IsDarkMode();
         menu.Renderer = new FluentRenderer(dark);
         menu.ForeColor = dark ? Color.FromArgb(255, 255, 255) : Color.FromArgb(26, 26, 26);
-        menu.Font = ResolveFont();
+        var font = ResolveFont();
+        menu.Font = font;
         menu.ShowImageMargin = false;
         menu.ShowCheckMargin = false;
         menu.Padding = new Padding(4);
@@ -34,6 +35,7 @@ public static class Win11MenuStyle
             var darkMode = dark ? 1 : 0;
             DwmApi.DwmSetWindowAttribute(hwnd, DwmApi.DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
         };
+        return font;
     }
 
     /// <summary>读注册表判断应用浅/深色主题（HKCU\...\Personalize\AppsUseLightTheme）。</summary>
