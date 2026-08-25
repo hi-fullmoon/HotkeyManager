@@ -10,6 +10,7 @@ Windows 全局热键工具：按一个快捷键切换任意应用的显示/隐�
 - 配置文件保存即热重载，无需重启
 - 配置支持注释和尾随逗号，默认模板内置字段说明与可复制示例
 - 系统托盘运行，右键菜单可打开配置 / 暂停热键 / 开关开机自启 / 退出；双击托盘图标也可打开配置
+- 同一 Windows 用户只运行一个实例，重复启动不会创建第二个托盘图标
 
 ## 构建与运行（需在 Windows 上）
 
@@ -115,6 +116,7 @@ src/HotkeyManager/
 ├── Core/
 │   ├── HotkeyService.cs    # RegisterHotKey 封装，WM_HOTKEY 分发
 │   ├── HotkeyParser.cs     # "ctrl+alt+1" → 修饰键标志 + 虚拟键码
+│   ├── SingleInstanceGuard.cs # 按 Windows 用户隔离的单实例保护
 │   └── WindowService.cs    # 窗口查找、显示/隐藏切换、置前
 ├── Config/
 │   ├── AppConfig.cs        # 配置模型

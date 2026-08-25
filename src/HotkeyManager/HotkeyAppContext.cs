@@ -15,6 +15,10 @@ internal sealed class HotkeyAppContext : ApplicationContext
     private readonly ConfigManager _configManager;
     private readonly TrayIcon _tray;
     private readonly Action _applyChangedConfig;
+    private readonly Action _configChangedHandler;
+    private readonly Action<string> _windowErrorHandler;
+    private int _exitRequested;
+    private int _disposeStarted;
 
     public HotkeyAppContext()
     {
@@ -26,13 +30,17 @@ internal sealed class HotkeyAppContext : ApplicationContext
         _configManager = new ConfigManager(_configPath);
         _applyChangedConfig = () => ApplyConfig(showSummary: false);
         _tray = new TrayIcon(OpenConfig, TogglePause,
-            AutostartService.IsEnabled, SetAutostart, Exit);
-        _windowService.ErrorOccurred += msg => _tray.ShowBalloon("HotkeyManager", msg);
+            GetAutostart, SetAutostart, Exit);
+        _windowErrorHandler = msg => _tray.ShowBalloon("HotkeyManager", msg);
+        _windowService.ErrorOccurred += _windowErrorHandler;
 
         // FileSystemWatcher/Timer 回调在线程池线程上，封送回 UI 线程再重注册热键；
         // 退出时 marshaler 可能已释放，BeginInvoke 抛异常属正常竞态，忽略
-        _configManager.Changed += () =>
+        _configChangedHandler = () =>
         {
+            if (Volatile.Read(ref _disposeStarted) != 0)
+                return;
+
             try
             {
                 _marshaler.BeginInvoke(_applyChangedConfig);
@@ -41,17 +49,17 @@ internal sealed class HotkeyAppContext : ApplicationContext
             {
             }
         };
+        _configManager.Changed += _configChangedHandler;
 
         ApplyConfig(showSummary: true);
     }
 
     private bool _paused;
-    private bool _disposed;
 
     private void ApplyConfig(bool showSummary)
     {
         // 退出后防抖回调仍可能触发热重载，此时依赖项已释放，直接忽略
-        if (_disposed)
+        if (Volatile.Read(ref _disposeStarted) != 0 || Volatile.Read(ref _exitRequested) != 0)
             return;
 
         var config = _configManager.Load();
@@ -129,10 +137,35 @@ internal sealed class HotkeyAppContext : ApplicationContext
         return _paused;
     }
 
-    private void SetAutostart(bool enabled)
+    private static bool? GetAutostart()
     {
-        AutostartService.SetEnabled(enabled);
+        return AutostartService.TryGetEnabled(out var enabled, out _) ? enabled : null;
+    }
+
+    /// <summary>写入后回读注册表，以真实状态更新菜单并向用户报告结果。</summary>
+    private bool? SetAutostart(bool enabled)
+    {
+        var action = enabled ? "开启" : "关闭";
+        if (!AutostartService.TrySetEnabled(enabled, out var writeError))
+        {
+            _tray.ShowBalloon("开机自启设置失败", $"{action}失败：{writeError}");
+            return GetAutostart();
+        }
+
+        if (!AutostartService.TryGetEnabled(out var actualState, out var readError))
+        {
+            _tray.ShowBalloon("开机自启设置失败", $"设置已写入，但无法读取注册表确认：{readError}");
+            return null;
+        }
+
+        if (actualState != enabled)
+        {
+            _tray.ShowBalloon("开机自启设置失败", $"重新读取后仍未{action}开机自启，请检查注册表权限。");
+            return actualState;
+        }
+
         _tray.ShowBalloon("HotkeyManager", enabled ? "已开启开机自启" : "已关闭开机自启");
+        return actualState;
     }
 
     private void OpenConfig()
@@ -153,12 +186,45 @@ internal sealed class HotkeyAppContext : ApplicationContext
 
     private void Exit()
     {
-        _disposed = true; // 先置位，防抖回调触发的 ApplyConfig 会直接忽略
-        _tray.Dispose();
-        _hotkeyService.Dispose();
-        _windowService.Dispose();
-        _configManager.Dispose();
-        _marshaler.Dispose();
-        Application.Exit();
+        ExitThread();
+    }
+
+    protected override void ExitThreadCore()
+    {
+        if (Interlocked.Exchange(ref _exitRequested, 1) != 0)
+            return;
+
+        // 只结束当前应用上下文的消息循环；Program 中的 using 随后统一释放全部资源。
+        base.ExitThreadCore();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing && Interlocked.Exchange(ref _disposeStarted, 1) == 0)
+        {
+            _configManager.Changed -= _configChangedHandler;
+            _windowService.ErrorOccurred -= _windowErrorHandler;
+
+            DisposeSafely(_tray, "托盘");
+            DisposeSafely(_configManager, "配置监听");
+            DisposeSafely(_hotkeyService, "热键服务");
+            DisposeSafely(_windowService, "窗口服务");
+            DisposeSafely(_marshaler, "UI marshaler");
+        }
+
+        base.Dispose(disposing);
+    }
+
+    private static void DisposeSafely(IDisposable resource, string name)
+    {
+        try
+        {
+            resource.Dispose();
+        }
+        catch (Exception ex)
+        {
+            // 退出阶段继续释放剩余资源，避免一个组件的清理失败阻断整个生命周期。
+            Debug.WriteLine($"[HotkeyManager] 释放{name}失败：{ex.Message}");
+        }
     }
 }

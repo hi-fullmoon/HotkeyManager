@@ -42,7 +42,8 @@ Name: "{group}\卸载 {#AppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\HotkeyManager.exe"; Tasks: desktopicon
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "HotkeyManager"; ValueData: """{app}\HotkeyManager.exe"""; Flags: uninsdeletevalue; Tasks: autostart
+; 与程序内自启设置统一：Run 命令只包含一个带引号的 exe 绝对路径
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "HotkeyManager"; ValueData: """{app}\{#AppName}.exe"""; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
 Filename: "{app}\HotkeyManager.exe"; Description: "运行 {#AppName}"; Flags: nowait postinstall skipifsilent

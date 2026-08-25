@@ -11,20 +11,20 @@ public sealed class TrayIcon : IDisposable
     private readonly Font _menuFont;
 
     public TrayIcon(Action openConfig, Func<bool> togglePause,
-        Func<bool> isAutostart, Action<bool> setAutostart, Action exit)
+        Func<bool?> getAutostart, Func<bool, bool?> setAutostart, Action exit)
     {
         var pauseItem = new ToolStripMenuItem("暂停热键");
         pauseItem.Click += (_, _) =>
             pauseItem.Text = togglePause() ? "恢复热键" : "暂停热键";
 
         var autostartItem = new ToolStripMenuItem();
-        var autostart = isAutostart();
-        autostartItem.Text = autostart ? "关闭开机自启" : "开启开机自启";
+        SetAutostartItemText(autostartItem, getAutostart());
         autostartItem.Click += (_, _) =>
         {
-            autostart = !autostart;
-            setAutostart(autostart);
-            autostartItem.Text = autostart ? "关闭开机自启" : "开启开机自启";
+            // 每次点击都先读取当前值，再在写入后用回读结果刷新菜单，绝不乐观切换状态。
+            var requestedState = !(getAutostart() ?? false);
+            var actualState = setAutostart(requestedState);
+            SetAutostartItemText(autostartItem, actualState);
         };
 
         _menu = new ContextMenuStrip();
@@ -54,6 +54,14 @@ public sealed class TrayIcon : IDisposable
         };
         _icon.DoubleClick += (_, _) => openConfig();
     }
+
+    private static void SetAutostartItemText(ToolStripMenuItem item, bool? enabled) =>
+        item.Text = enabled switch
+        {
+            true => "关闭开机自启",
+            false => "开启开机自启",
+            null => "设置开机自启（状态未知）"
+        };
 
     public void ShowBalloon(string title, string message) =>
         _icon.ShowBalloonTip(3000, title, message, ToolTipIcon.Info);
