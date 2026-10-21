@@ -62,6 +62,8 @@ GitHub Actions 会在以下情况运行：
 - 推送 `vX.Y.Z` 标签：创建 GitHub Release，上传安装包、便携版和 SHA-256 文件，并使用对应 Changelog 作为发布说明。
 - 推送 `vX.Y.Z-suffix` 标签：例如 `v1.1.0-beta.1`，发布为 pre-release。
 
+流水线先执行配置保存与界面行为检查，再构建并校验安装包、便携版和 SHA-256 文件。发布时先创建草稿，附件全部上传成功后自动转为正式 Release；预发布标签会自动标记为 pre-release，正式版本会标记为 Latest。已有草稿也会自动完成发布，失败后可在 Actions 中重新运行，无需手动上传附件。
+
 发布前先在 `[Unreleased]` 记录变更，再更新版本并归档 Changelog：
 
 ```powershell
@@ -73,6 +75,8 @@ git commit -m "chore: bump version to 1.1.0"
 git tag v1.1.0
 git push origin main v1.1.0
 ```
+
+必须将 tag 推送到 GitHub 才会触发发布，仅在本地执行 `git tag` 不会运行流水线。提交版本更新后，也可以分开推送分支和标签：`git push origin main`、`git push origin v1.1.0`。后续版本请替换示例中的版本号。
 
 `bump-version.ps1` 会同步项目与安装器版本，并将 `[Unreleased]` 归档为带日期的新版本。可使用 `-Date YYYY-MM-DD` 指定日期、`-SkipChangelog` 仅更新版本文件，或用 `-DryRun` 预览。工作流会校验 tag 与项目版本一致，避免误发版本。
 

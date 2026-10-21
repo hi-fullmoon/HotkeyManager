@@ -85,6 +85,19 @@ jobs:
           dotnet restore src/HotkeyManager/HotkeyManager.csproj
           dotnet build src/HotkeyManager/HotkeyManager.csproj -c Release --no-restore
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check settings and UI behavior
+        shell: pwsh
+        run: |
+          dotnet run --project tools/SettingsChecks/SettingsChecks.csproj -c Release
+          if ($LASTEXITCODE -ne 0) { throw 'Settings checks failed' }
+          node tools/SettingsChecks/ui-checks.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'UI checks failed' }
+
       - name: Install Inno Setup
         shell: pwsh
         run: choco install innosetup --no-progress -y
@@ -150,7 +163,7 @@ jobs:
           name: ${{ needs.build.outputs.artifact-name }}
           path: release-assets
 
-      - name: Create or update release
+      - name: Upload packages and publish release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -161,25 +174,35 @@ jobs:
         run: |
           set -euo pipefail
           pwsh ./tools/changelog-section.ps1 "$CHANGELOG_VERSION" > release-notes.md
+          test -s release-notes.md
+          cd release-assets
+          sha256sum --check ./*.sha256
+          cd ..
           if gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release edit "$TAG_NAME" \
               --title "HotkeyManager $RELEASE_VERSION" \
               --notes-file release-notes.md \
               --repo "$GITHUB_REPOSITORY"
-            gh release upload "$TAG_NAME" release-assets/* \
-              --clobber \
-              --repo "$GITHUB_REPOSITORY"
           else
-            release_args=(
-              "$TAG_NAME"
-              release-assets/*
-              --title "HotkeyManager $RELEASE_VERSION"
-              --notes-file release-notes.md
-              --verify-tag
+            gh release create "$TAG_NAME" \
+              --draft \
+              --title "HotkeyManager $RELEASE_VERSION" \
+              --notes-file release-notes.md \
+              --verify-tag \
               --repo "$GITHUB_REPOSITORY"
-            )
-            if [[ "$IS_PRERELEASE" == "true" ]]; then
-              release_args+=(--prerelease)
-            fi
-            gh release create "${release_args[@]}"
           fi
+          gh release upload "$TAG_NAME" release-assets/* \
+            --clobber \
+            --repo "$GITHUB_REPOSITORY"
+          latest=false
+          if [[ "$IS_PRERELEASE" == "false" ]]; then
+            latest=true
+          fi
+          gh release edit "$TAG_NAME" \
+            --draft=false \
+            --prerelease="$IS_PRERELEASE" \
+            --latest="$latest" \
+            --repo "$GITHUB_REPOSITORY"
+          gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" \
+            --json url,isDraft,assets \
+            --jq 'if .isDraft or (.assets | length) != 4 then error("Release is incomplete") else .url end'

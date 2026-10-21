@@ -27,4 +27,4 @@ if ([string]::IsNullOrWhiteSpace($body)) {
     throw "Changelog 中的版本内容为空：$Version"
 }
 
-[Console]::Out.WriteLine($body)
+Write-Output $body
