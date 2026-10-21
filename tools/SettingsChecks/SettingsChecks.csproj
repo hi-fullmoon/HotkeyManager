@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../src/HotkeyManager/Settings/SettingsConfigStore.cs" Link="SettingsConfigStore.cs" />
+    <Compile Include="../../src/HotkeyManager/Core/HotkeyParser.cs" Link="HotkeyParser.cs" />
+    <Compile Include="../../src/HotkeyManager/Core/HotkeyService.cs" Link="HotkeyService.cs" />
+    <Compile Include="../../src/HotkeyManager/Interop/User32.cs" Link="User32.cs" />
+  </ItemGroup>
+</Project>

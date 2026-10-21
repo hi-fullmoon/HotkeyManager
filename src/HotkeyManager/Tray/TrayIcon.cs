@@ -28,7 +28,7 @@ public sealed class TrayIcon : IDisposable
         };
 
         _menu = new ContextMenuStrip();
-        _menu.Items.Add("打开配置文件", null, (_, _) => openConfig());
+        _menu.Items.Add("快捷键设置", null, (_, _) => openConfig());
         _menu.Items.Add(new ToolStripSeparator());
         _menu.Items.Add(pauseItem);
         _menu.Items.Add(autostartItem);

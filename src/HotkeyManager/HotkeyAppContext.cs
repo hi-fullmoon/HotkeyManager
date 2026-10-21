@@ -100,7 +100,7 @@ internal sealed class HotkeyAppContext : ApplicationContext
         _hotkeyService.UnregisterAll();
 
         // 暂停状态下不注册：热重载只校验配置，按键保持释放状态
-        if (_paused)
+        if (_paused || _recording)
             return;
 
         var registered = 0;
@@ -168,20 +168,24 @@ internal sealed class HotkeyAppContext : ApplicationContext
         return actualState;
     }
 
+    private Settings.SettingsForm? _settings;
+    private bool _recording;
+
     private void OpenConfig()
     {
-        try
+        if (_settings is { IsDisposed: false })
         {
-            // 优先使用用户为 .jsonc 配置的默认编辑器。
-            Process.Start(new ProcessStartInfo(_configPath) { UseShellExecute = true })?.Dispose();
+            _settings.WindowState = FormWindowState.Normal;
+            _settings.Activate();
+            return;
         }
-        catch (Win32Exception)
+        _settings = new Settings.SettingsForm(_configPath, active =>
         {
-            // 纯净 Windows 可能没有 .jsonc 文件关联，此时保证仍能用记事本编辑。
-            var fallback = new ProcessStartInfo("notepad.exe") { UseShellExecute = true };
-            fallback.ArgumentList.Add(_configPath);
-            Process.Start(fallback)?.Dispose();
-        }
+            _recording = active;
+            if (active) _hotkeyService.UnregisterAll();
+            else ApplyConfig(showSummary: false);
+        });
+        _settings.Show();
     }
 
     private void Exit()
@@ -205,6 +209,7 @@ internal sealed class HotkeyAppContext : ApplicationContext
             _configManager.Changed -= _configChangedHandler;
             _windowService.ErrorOccurred -= _windowErrorHandler;
 
+            _settings?.Dispose();
             DisposeSafely(_tray, "托盘");
             DisposeSafely(_configManager, "配置监听");
             DisposeSafely(_hotkeyService, "热键服务");

@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hotkey Manager · 快捷键设置</title>
+<style>:root{--blue:#3d68e5;--blue-hover:#2f57cf;--danger:#ca5262;--danger-hover:#b63d4b;--text:#243149;--muted:#718096;--border:#e1e7ef;--surface:#f5f7fb;--radius:6px;--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--control:32px;--button:28px;--compact:24px}
+*{box-sizing:border-box}
+html,body,.app,.layout{width:100%;height:100%;margin:0;overflow:hidden}
+body{background:#f7f9fc;color:var(--text);font:12px/1.5 'Segoe UI Variable Text','Segoe UI','Microsoft YaHei UI','Microsoft YaHei',sans-serif;-webkit-font-smoothing:antialiased}
+button,input{font:inherit}
+button{height:var(--button);padding:0 var(--s3);border:1px solid var(--border);border-radius:var(--radius);background:#fff;color:var(--text);line-height:18px;cursor:pointer;transition:background-color .12s,border-color .12s,color .12s}
+button:hover:enabled{background:#f0f4fa;border-color:#cdd7e6}
+button:active:enabled{background:#e7edf7}
+button:disabled,input:disabled{opacity:.55;cursor:default}
+button:focus-visible,input:focus-visible{outline:2px solid #9ebcf8;outline-offset:2px}
+.primary{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 1px 2px #243b7b16}
+.primary:hover:enabled{background:var(--blue-hover);border-color:var(--blue-hover)}
+.primary:active:enabled{background:#1f50bd;border-color:#1f50bd}
+main{height:100%;padding:var(--s4);display:flex;flex-direction:column;min-height:0}
+.heading{flex-shrink:0;height:24px;display:flex;align-items:center}
+h1{font-size:20px;font-weight:600;line-height:24px;letter-spacing:-.4px;margin:0}
+.toolbar{flex-shrink:0;height:var(--control);margin:var(--s3) 0 var(--s2)}
+.searchbar{height:100%;display:flex;align-items:center;gap:var(--s2);padding:0 var(--s3);border:1px solid var(--border);border-radius:var(--radius);color:var(--muted);background:#fff}
+.searchbar:focus-within{border-color:#91b2f5;box-shadow:0 0 0 2px #326be810;background:#fff}
+.searchbar svg{flex-shrink:0}
+.search{flex:1;min-width:0;width:100%;height:100%;padding:0;border:0;outline:none;background:transparent;color:var(--text)}
+.search:focus-visible{outline:none}
+input::placeholder{color:#8a97a9;opacity:1}
+#searchcount{padding-left:var(--s3);border-left:1px solid var(--border);font-size:11px;line-height:16px;white-space:nowrap}
+.workspace{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:var(--s3);flex:1;min-height:0;align-items:start}
+.workspace>section{min-width:0;max-height:100%}
+.listhead{height:32px;padding:0 0 var(--s1) var(--s2);display:flex;align-items:center;justify-content:space-between}
+.listtitle{font-size:11px;color:var(--muted)}
+.add-inline{display:inline-flex;align-items:center;gap:var(--s1);height:var(--compact);padding:0 var(--s2);border-color:transparent;background:transparent;color:var(--blue);font-size:11px}
+.add-inline:hover:enabled{background:#edf3ff;border-color:transparent}
+.add-inline .add-icon{display:block;flex-shrink:0}
+.add-inline span{display:block;font-size:11px;line-height:18px}
+#list{display:flex;flex-direction:column;gap:var(--s1)}
+.item{width:100%;height:50px;flex-shrink:0;display:flex;align-items:center;gap:var(--s2);padding:var(--s2);text-align:left;min-width:0;border-color:transparent;background:transparent}
+.item.selected{background:#edf3ff;border-color:#d3e0fc;box-shadow:none}
+.item.selected:hover:enabled{background:#e6eeff;border-color:#c5d6f8}
+.item>div{min-width:0;overflow:hidden}
+.icon{width:28px;height:28px;border-radius:var(--radius);display:grid;place-items:center;flex-shrink:0;font-size:15px;font-weight:600;color:var(--fg);background:var(--bg)}
+.name,.sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.name{font-size:12px;font-weight:600;line-height:18px}
+.sub{font-size:11px;line-height:14px;color:var(--muted)}
+.keys{display:flex;align-items:center;gap:var(--s1);margin-left:auto;flex-shrink:0;max-width:58%;overflow:hidden;color:var(--muted);font-size:11px}
+kbd{min-width:24px;padding:var(--s1) 6px;border:1px solid #dbe1eb;border-bottom-width:1px;border-radius:4px;box-shadow:0 1px 0 #dbe1eb;background:#fff;color:#5e697b;font:11px/16px 'Segoe UI',sans-serif;text-align:center}
+.item kbd{min-width:20px;padding:2px 4px;font-size:10px;line-height:14px}
+.listpager{height:var(--compact);margin-top:var(--s2);display:flex;align-items:center;justify-content:flex-end;gap:var(--s2);color:var(--muted);font-size:11px}
+.listpager button{position:relative;display:block;flex-shrink:0;height:var(--compact);width:var(--compact);padding:0;line-height:0;appearance:none}
+.listpager button svg{position:absolute;display:block;width:14px;height:14px;left:50%;top:50%;margin:0;transform:translate(-50%,-50%);pointer-events:none}
+.listpager>span{display:flex;align-items:center;justify-content:center;height:var(--compact);line-height:var(--compact);font-variant-numeric:tabular-nums}
+.panel{align-self:stretch;display:flex;flex-direction:column;border:1px solid var(--border);border-radius:10px;background:#fff;box-shadow:0 2px 8px #26354a04;overflow:hidden}
+.panelheader{height:36px;padding:0 var(--s3);display:flex;align-items:center;gap:var(--s2);border-bottom:1px solid #edf1f6;background:#fcfdff}
+.panelheader strong{font-size:12px;font-weight:600}
+.tag{margin-left:auto;padding:2px 6px;border-radius:4px;background:#edf2fa;color:#7386a3;font-size:10px;line-height:16px}
+.form{flex:1;min-height:0;display:flex;flex-direction:column;padding:var(--s3)}
+.form>label,.form>input,.form>#record,.form>.help,.form>.error,.form>.path-input,.form>.actions{flex-shrink:0}
+label{display:block;line-height:16px;margin-bottom:var(--s1);font-size:12px;color:#56647a}
+input.field{display:block;width:100%;height:var(--control);padding:0 var(--s2);margin:0 0 var(--s2);border:1px solid var(--border);border-radius:var(--radius);background:#fff;color:var(--text);line-height:18px}
+input.field:focus-visible{border-color:#91b2f5;outline:2px solid #dce8ff;outline-offset:0}
+#record{display:flex;align-items:center;justify-content:center;gap:var(--s1);width:100%;height:44px;padding:0 var(--s2);margin-bottom:var(--s1);border:1px solid #d4dff5;background:#f7f9ff;color:#51658b}
+#record:hover:enabled{border-color:#91b2f5;background:#edf3ff}
+#record.recording{border-color:var(--blue);background:#eaf1ff;color:var(--blue)}
+.help{height:16px;margin-bottom:var(--s2);line-height:16px;font-size:11px;color:var(--muted);white-space:nowrap}
+.error:empty{display:none}
+.error{height:16px;margin-bottom:var(--s1);font-size:11px;line-height:16px;color:var(--danger);white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.path-input{position:relative}
+.path-input input{min-width:0;padding-right:40px}
+.path-input button{position:absolute;right:2px;top:2px;display:inline-flex;align-items:center;justify-content:center;width:var(--button);height:var(--button);margin:0;padding:0;border:0;background:transparent;color:var(--muted);font-size:16px}
+.path-input button:hover:enabled{background:#edf3ff;color:var(--blue)}
+.actions{height:37px;margin-top:auto;padding-top:var(--s2);display:flex;align-items:center;justify-content:space-between;gap:var(--s2);border-top:1px solid var(--border)}
+.actions>button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;height:var(--button);min-height:var(--button);padding:0 var(--s3);line-height:18px}
+.actions .delete{border:0;background:transparent;color:var(--danger);text-align:center}
+.actions .delete:hover:enabled{background:#fff0f2;color:var(--danger-hover)}
+.actions .delete:active:enabled{background:#ffe5e9}
+.footer{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:var(--s3);margin-top:var(--s2);padding-top:var(--s2);border-top:1px solid #edf0f4;color:var(--muted);font-size:10px;line-height:16px}
+.footer .reload-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-shrink:0;font-size:12px;border:0;background:transparent;color:var(--muted)}
+.footer .reload-button:hover:enabled{background:#f0f4fa;color:var(--blue)}
+#toast{display:none;position:fixed;bottom:var(--s5);left:50%;transform:translateX(-50%);max-width:calc(100% - 32px);padding:var(--s2) var(--s4);border-radius:8px;background:#26354a;color:#fff;font-size:12px;box-shadow:0 8px 30px #0002;overflow-wrap:anywhere}
+.confirm-dialog{width:360px;max-width:calc(100vw - 40px);padding:var(--s5);border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--text);box-shadow:0 16px 48px #18233d26,0 4px 12px #18233d0c;overflow:hidden}
+.confirm-dialog::backdrop{background:#24344c35;backdrop-filter:blur(2px)}
+.confirm-heading{display:flex;align-items:center;gap:var(--s3)}
+.confirm-mark{width:32px;height:32px;display:grid;place-items:center;flex-shrink:0;border-radius:8px;background:#fff0f2;color:var(--danger)}
+.confirm-heading h2{font-size:15px;font-weight:600;line-height:24px;margin:0}
+.confirm-dialog p{margin:var(--s3) 0 var(--s5);font-size:12px;line-height:20px;color:var(--muted);overflow-wrap:anywhere}
+.confirm-actions{display:flex;align-items:center;justify-content:flex-end;gap:var(--s2)}
+.confirm-actions .danger{background:var(--danger);border-color:var(--danger);color:#fff}
+.confirm-actions .danger:hover:enabled{background:var(--danger-hover);border-color:var(--danger-hover)}
+.confirm-actions .danger:active:enabled{background:#a63240;border-color:#a63240}
+.confirm-dialog[data-kind="discard"] .confirm-mark{background:#fff5e4;color:#bc8732}
+
+.empty-state{padding:var(--s4) var(--s2);margin:0;color:var(--muted);font-size:12px;line-height:20px}
+
+.panelheader>svg{flex-shrink:0;color:#6b7e9b}
+.confirm-dialog[open]{animation:dialog-in .14s ease-out}
+@keyframes dialog-in{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){button{transition:none}.confirm-dialog[open]{animation:none}}
+
+.field-label{height:20px;display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s2)}
+.field-label label{margin:0}
+.field-label .running-link{height:18px;padding:0;border:0;background:transparent;color:var(--blue);font-size:10px;line-height:16px}
+.field-label .running-link:hover:enabled{background:transparent;color:var(--blue-hover);text-decoration:underline}
+.running-dialog{width:420px;height:408px;max-width:calc(100vw - 32px);max-height:calc(100vh - 32px);padding:var(--s4);border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--text);box-shadow:0 16px 48px #18233d26;overflow:hidden}
+.running-dialog[open]{display:flex;flex-direction:column;gap:var(--s2)}
+.running-dialog::backdrop{background:#24344c35;backdrop-filter:blur(2px)}
+.running-heading{display:flex;align-items:center;justify-content:space-between;height:24px;flex-shrink:0}
+.running-heading h2{margin:0;font-size:15px;line-height:24px;font-weight:600}
+.icon-button{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;background:transparent;color:var(--muted)}
+.running-searchbar{height:var(--control);flex-shrink:0}
+.running-status{flex:1;min-width:0;font-size:11px;line-height:16px;min-height:16px;color:var(--muted);white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.running-list{display:flex;flex:1;min-height:0;flex-direction:column;gap:var(--s1);overflow-y:auto;overflow-x:hidden;padding:2px;scrollbar-gutter:stable;overscroll-behavior:contain}
+.running-item{display:flex;align-items:center;gap:var(--s2);flex-shrink:0;width:100%;height:44px;padding:4px 8px;text-align:left;border-color:transparent}
+.running-item .running-text{min-width:0;flex:1}
+.running-name{font-size:12px;font-weight:600;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.running-meta{font-size:11px;line-height:16px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.running-footer{display:flex;justify-content:space-between;align-items:center;gap:var(--s2);flex-shrink:0;border-top:1px solid #edf0f4;padding-top:var(--s2)}
+.running-footer button{display:inline-flex;align-items:center;justify-content:center;gap:var(--s1);flex-shrink:0;border:0;background:transparent;color:var(--blue);padding:0 var(--s2)}
+.running-footer button:hover:enabled{background:#edf3ff;color:var(--blue-hover)}
+.running-list::-webkit-scrollbar{width:6px}
+.running-list::-webkit-scrollbar-track{background:transparent}
+.running-list::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+.running-list::-webkit-scrollbar-thumb:hover{background:#a9b7ca}
+.running-empty{flex:1;display:flex;align-items:center;justify-content:center;margin:0;color:var(--muted);font-size:12px}
+
+html,body{background:#eaf0f6}.app{width:760px;height:540px;margin:24px auto;background:#f7f9fc;border-radius:12px;box-shadow:0 16px 60px #23365b14}#toast{bottom:24px}@media(max-width:790px){.app{margin:0 auto;border-radius:0}}
+</style>
+<div class="app"><div class="layout"><main><div class="heading"><div><h1>快捷键设置</h1></div></div><div class="toolbar"><div class="searchbar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input class="search" id="search" placeholder="搜索应用、进程或快捷键" aria-label="搜索应用、进程或快捷键"><span id="searchcount" aria-live="polite"></span></div></div><div class="workspace"><section><div class="listhead"><span class="listtitle">应用快捷键</span><button id="add" class="add-inline" aria-label="新建快捷键"><svg class="add-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>新建快捷键</span></button></div><div id="list"></div><div id="listpager" class="listpager" aria-label="应用列表分页"></div></section><section class="panel"><div class="panelheader"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9m4 0h3M4 17h3m4 0h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><strong>快捷键详情</strong><span class="tag">应用切换</span></div><div class="form"><label for="name">应用名称</label><input class="field" id="name"><label>快捷键</label><button id="record" aria-label="点击录制快捷键"></button><div class="help" id="recordhint">点击上方区域，然后按下想使用的组合键</div><div class="error" id="error" role="alert"></div><div class="field-label"><label for="path">应用路径</label><button type="button" id="running" class="running-link">从运行中选择</button></div><div class="path-input"><button type="button" id="browse" aria-label="选择应用程序" title="选择应用程序"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9H3Z"/></svg></button><input class="field" id="path" placeholder="C:\Program Files\App\app.exe"></div><label for="process">进程名称</label><input class="field" id="process" placeholder="不包含 .exe"><div class="actions"><button class="delete" id="delete">删除</button><button class="primary" id="save">保存更改</button></div></div></section></div><div class="footer"><span>演示模式 · 24 条应用 · 不注册系统快捷键</span><button id="reset" class="reload-button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1"/></svg><span>重新加载配置</span></button></div></main></div></div><div id="toast" role="status"></div>
+<dialog id="running-dialog" class="running-dialog" aria-labelledby="running-title">
+<div class="running-heading"><h2 id="running-title">选择运行中的应用</h2><button type="button" id="running-close" class="icon-button" aria-label="关闭应用选择"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+<div class="searchbar running-searchbar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input id="running-search" class="search" placeholder="搜索应用、窗口或进程" aria-label="搜索运行中的应用"></div>
+<div id="running-list" class="running-list" aria-label="运行中的应用列表"></div>
+<div class="running-footer"><div id="running-status" class="running-status" role="status"></div><button type="button" id="running-refresh"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1"/></svg><span>刷新</span></button></div>
+</dialog>
+<dialog id="confirm-dialog" class="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-description">
+<div class="confirm-heading"><span class="confirm-mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v5m0 3h.01"/><circle cx="12" cy="12" r="9"/></svg></span><h2 id="confirm-title"></h2></div>
+<p id="confirm-description"></p><div class="confirm-actions"><button id="confirm-cancel" type="button" autofocus>取消</button><button id="confirm-accept" class="danger" type="button">确认</button></div>
+</dialog><script>const demoEntries = [{"name": "微信", "processName": "WeChat", "exePath": "C:\\Program Files\\Tencent\\WeChat\\WeChat.exe", "key": "Ctrl+Alt+F1", "windowClass": ""}, {"name": "Visual Studio Code", "processName": "Code", "exePath": "C:\\Program Files\\Microsoft VS Code\\Code.exe", "key": "Ctrl+Alt+F2", "windowClass": ""}, {"name": "Google Chrome", "processName": "chrome", "exePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "key": "Ctrl+Alt+F3", "windowClass": ""}, {"name": "文件资源管理器", "processName": "explorer", "exePath": "C:\\Windows\\explorer.exe", "key": "Ctrl+Alt+F4", "windowClass": ""}, {"name": "记事本", "processName": "notepad", "exePath": "C:\\Windows\\System32\\notepad.exe", "key": "", "windowClass": ""}, {"name": "Windows Terminal", "processName": "WindowsTerminal", "exePath": "C:\\Program Files\\WindowsApps\\WindowsTerminal.exe", "key": "Ctrl+Alt+F6", "windowClass": ""}, {"name": "飞书", "processName": "Feishu", "exePath": "C:\\Program Files\\Feishu\\Feishu.exe", "key": "Ctrl+Alt+F7", "windowClass": ""}, {"name": "钉钉", "processName": "DingTalk", "exePath": "C:\\Program Files\\DingTalk\\DingTalk.exe", "key": "Ctrl+Alt+F8", "windowClass": ""}, {"name": "Microsoft Edge", "processName": "msedge", "exePath": "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe", "key": "Ctrl+Alt+F9", "windowClass": ""}, {"name": "Obsidian", "processName": "Obsidian", "exePath": "C:\\Program Files\\Obsidian\\Obsidian.exe", "key": "", "windowClass": ""}, {"name": "Notion", "processName": "Notion", "exePath": "C:\\Program Files\\Notion\\Notion.exe", "key": "Ctrl+Alt+F11", "windowClass": ""}, {"name": "Spotify", "processName": "Spotify", "exePath": "C:\\Program Files\\Spotify\\Spotify.exe", "key": "Ctrl+Alt+F12", "windowClass": ""}, {"name": "Figma", "processName": "Figma", "exePath": "C:\\Program Files\\Figma\\Figma.exe", "key": "Ctrl+Alt+F13", "windowClass": ""}, {"name": "截图工具", "processName": "SnippingTool", "exePath": "C:\\Windows\\System32\\SnippingTool.exe", "key": "Ctrl+Alt+F14", "windowClass": ""}, {"name": "计算器", "processName": "CalculatorApp", "exePath": "C:\\Windows\\System32\\calc.exe", "key": "", "windowClass": ""}, {"name": "Microsoft Word", "processName": "WINWORD", "exePath": "C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE", "key": "Ctrl+Alt+F16", "windowClass": ""}, {"name": "Microsoft Excel", "processName": "EXCEL", "exePath": "C:\\Program Files\\Microsoft Office\\root\\Office16\\EXCEL.EXE", "key": "Ctrl+Alt+F17", "windowClass": ""}, {"name": "PowerPoint", "processName": "POWERPNT", "exePath": "C:\\Program Files\\Microsoft Office\\root\\Office16\\POWERPNT.EXE", "key": "Ctrl+Alt+F18", "windowClass": ""}, {"name": "腾讯会议", "processName": "wemeetapp", "exePath": "C:\\Program Files\\Tencent\\WeMeet\\wemeetapp.exe", "key": "Ctrl+Alt+F19", "windowClass": ""}, {"name": "网易云音乐", "processName": "cloudmusic", "exePath": "C:\\Program Files\\NetEase\\CloudMusic\\cloudmusic.exe", "key": "", "windowClass": ""}, {"name": "Adobe Photoshop", "processName": "Photoshop", "exePath": "C:\\Program Files\\Adobe\\Adobe Photoshop\\Photoshop.exe", "key": "Ctrl+Alt+F21", "windowClass": ""}, {"name": "Everything", "processName": "Everything", "exePath": "C:\\Program Files\\Everything\\Everything.exe", "key": "Ctrl+Alt+F22", "windowClass": ""}, {"name": "GitHub Desktop", "processName": "GitHubDesktop", "exePath": "C:\\Program Files\\GitHub Desktop\\GitHubDesktop.exe", "key": "Ctrl+Alt+F23", "windowClass": ""}, {"name": "一个名称比较长的应用用于验证列表截断效果", "processName": "LongApp", "exePath": "C:\\Program Files\\Long Application Name\\LongApp.exe", "key": "Ctrl+Alt+F24", "windowClass": ""}];
+let mockEntries = structuredClone(demoEntries), onNativeMessage = null;
+window.chrome = window.chrome || {};
+window.chrome.webview = {
+  addEventListener(type, handler) { if(type === 'message') onNativeMessage = handler; },
+  postMessage(message) {
+    const reply = data => queueMicrotask(() => onNativeMessage?.({data}));
+    if(message.type === 'load') reply({type:'loaded', entries:structuredClone(mockEntries)});
+    else if(message.type === 'save') { mockEntries=structuredClone(message.entries); reply({type:'saved'}); }
+    else if(message.type === 'runningApps') reply({type:'runningApps',apps:demoEntries.slice(0,12).map((app,id)=>({id:id+1,name:app.name,process:app.processName,path:app.exePath,title:app.name+' · 演示窗口',error:null}))});
+    else if(message.type === 'pickRunningApp') { const app=demoEntries[message.id-1]; reply({type:'picked',name:app.name,path:app.exePath,process:app.processName}); }
+    else if(message.type === 'browse') reply({type:'error', message:'此为演示页面，请直接编辑应用路径。'});
+  }
+};
+
+
+
+const $ = id => document.getElementById(id);
+const send = message => window.chrome.webview.postMessage(message);
+const pageSize = 6;
+let page = 0;
+const appMarks = { wechat: ['微','#e5f6ec','#29a25b'], weixin: ['微','#e5f6ec','#29a25b'], code: ['⌘','#e5f1fc','#2d90d4'], chrome: ['◉','#fff2df','#d39530'], explorer: ['▣','#fff5d9','#c59d34'], notepad: ['▤','#edf1f8','#7189aa'] };
+let items = [], selected = -1, draft = '', recording = false, dirty = false, pending = null, busy = false;
+function toast(message) {
+  $('toast').textContent = message; $('toast').style.display = 'block';
+  clearTimeout(window.toastTimer); window.toastTimer = setTimeout(() => $('toast').style.display = 'none', 3000);
+}
+function keys(element, key) {
+  element.replaceChildren();
+  if (!key) { element.textContent = '点击录制快捷键'; return; }
+  key.split('+').forEach(value => { const k = document.createElement('kbd'); k.textContent = value; element.append(k); });
+}
+function stopRecording() {
+  recording = false; $('record').classList.remove('recording'); keys($('record'), draft);
+  $('recordhint').textContent = '点击上方区域，然后按下想使用的组合键';
+  send({ type: 'record', active: false });
+}
+let confirmationPending = false;
+function askConfirmation({ title, description, accept, cancel = '取消', kind = 'delete' }) {
+  if (confirmationPending) return Promise.resolve(false);
+  stopRecording();
+  const dialog = $('confirm-dialog');
+  $('confirm-title').textContent = title;
+  $('confirm-description').textContent = description;
+  $('confirm-accept').textContent = accept;
+  $('confirm-cancel').textContent = cancel;
+  dialog.dataset.kind = kind;
+  confirmationPending = true;
+  return new Promise(resolve => {
+    let settled = false;
+    const finish = accepted => {
+      if (settled) return;
+      settled = true; confirmationPending = false;
+      dialog.close(); resolve(accepted);
+    };
+    $('confirm-accept').onclick = () => finish(true);
+    $('confirm-cancel').onclick = () => finish(false);
+    dialog.oncancel = event => { event.preventDefault(); finish(false); };
+    dialog.onclose = () => finish(false);
+    dialog.showModal();
+    $('confirm-cancel').focus();
+  });
+}
+async function discard() {
+  return !dirty || await askConfirmation({ title: '放弃未保存的更改？', description: '当前修改尚未保存。放弃后，这些修改将不会生效。', accept: '放弃更改', cancel: '继续编辑', kind: 'discard' });
+}
+function render() {
+  $('list').replaceChildren();
+  const query = $('search').value.trim().toLowerCase();
+  const matches = items.map((a,index) => ({a,index})).filter(({a}) =>
+    ((a.name || a.processName || '新应用') + ' ' + (a.processName || '') + ' ' + (a.key || '')).toLowerCase().includes(query));
+  const count = matches.length;
+  const pageCount = Math.max(1, Math.ceil(count / pageSize));
+  page = Math.max(0, Math.min(page, pageCount - 1));
+  matches.slice(page * pageSize, (page + 1) * pageSize).forEach(({a,index}) => {
+    const name = a.name || a.processName || '新应用';
+    const button = document.createElement('button'); button.className = 'item' + (index === selected ? ' selected' : '');
+    button.disabled = busy;
+    const icon = document.createElement('span'); icon.className = 'icon'; const mark = appMarks[(a.processName || '').toLowerCase()] || [name[0].toUpperCase(),'#eaf1ff','#326be8']; icon.style.setProperty('--bg', mark[1]); icon.style.setProperty('--fg', mark[2]); icon.textContent = mark[0];
+    const text = document.createElement('div'), title = document.createElement('div'), sub = document.createElement('div');
+    title.className = 'name'; title.textContent = name; sub.className = 'sub'; sub.textContent = a.processName ? a.processName + '.exe' : '等待配置应用'; text.append(title, sub);
+    const shortcut = document.createElement('span'); shortcut.className = 'keys'; keys(shortcut, a.key || ''); if (!a.key) shortcut.textContent = '待设置';
+    button.append(icon, text, shortcut);
+    button.onclick = async () => { if (selected !== index && await discard()) { if (selected >= 0 && items[selected]._new) { items.splice(selected, 1); if (index > selected) index--; } load(index); } };
+    $('list').append(button);
+  });
+  $('listpager').replaceChildren();
+  $('listpager').style.display = pageCount > 1 ? 'flex' : 'none';
+  if (pageCount > 1) {
+    const previous = document.createElement('button'), next = document.createElement('button'), label = document.createElement('span');
+    previous.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>'; previous.ariaLabel = '上一页'; previous.title = '上一页'; previous.disabled = busy || page === 0;
+    next.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>'; next.ariaLabel = '下一页'; next.title = '下一页'; next.disabled = busy || page === pageCount - 1;
+    label.textContent = (page + 1) + ' / ' + pageCount;
+    previous.onclick = () => { page--; render(); }; next.onclick = () => { page++; render(); };
+    $('listpager').append(previous, label, next);
+  }
+  $('searchcount').textContent = count + ' 个应用';
+  if (!count) { const empty = document.createElement('p'); empty.className = 'empty-state'; empty.textContent = items.length ? '没有匹配的快捷键' : '还没有快捷键，点击右上角新建'; $('list').append(empty); }
+}
+function load(index) {
+  stopRecording(); selected = index; dirty = false; const a = items[index];
+  $('name').value = a?.name || a?.processName || ''; $('path').value = a?.exePath || ''; $('process').value = a?.processName || ''; draft = a?.key || '';
+  keys($('record'), draft); $('error').textContent = '';
+  document.querySelectorAll('.form input,.form button').forEach(el => el.disabled = !a || busy);
+  const matchingIndices = items.map((a,i) => ({a,i})).filter(({a}) => ((a.name || a.processName || '新应用') + ' ' + (a.processName || '') + ' ' + (a.key || '')).toLowerCase().includes($('search').value.trim().toLowerCase()));
+  const position = matchingIndices.findIndex(({i}) => i === index);
+  if (position >= 0) page = Math.floor(position / pageSize);
+  render();
+}
+function setBusy(value) {
+  busy = value; $('add').disabled = value; $('reset').disabled = value;
+  document.querySelectorAll('.form input,.form button').forEach(el => el.disabled = value || selected < 0); render();
+}
+function saveEntries(entries, index) {
+  stopRecording(); pending = { entries, index }; setBusy(true); send({ type: 'save', entries });
+}
+for (const id of ['name', 'path', 'process']) $(id).oninput = () => dirty = true;
+$('search').oninput = () => { page = 0; render(); };
+$('record').onclick = () => {
+  if (recording) { stopRecording(); return; }
+  recording = true; $('error').textContent = ''; $('record').classList.add('recording'); $('record').textContent = '请按下组合键…';
+  $('recordhint').textContent = '按 Esc 取消录制'; send({ type: 'record', active: true });
+};
+const special = { ' ': 'Space', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', PageUp: 'PageUp', PageDown: 'PageDown', PrintScreen: 'PrintScreen', '+': 'Oemplus', '-': 'OemMinus', ',': 'Oemcomma', '.': 'OemPeriod', '/': 'OemQuestion', ';': 'OemSemicolon', "'": 'OemQuotes', '[': 'OemOpenBrackets', ']': 'OemCloseBrackets', '\\': 'OemPipe', '`': 'Oemtilde' };
+document.addEventListener('keydown', e => {
+  if (!recording) return;
+  e.preventDefault(); e.stopPropagation();
+  if (e.key === 'Escape') { stopRecording(); return; }
+  if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
+  let key = e.code.startsWith('Numpad') ? ({ NumpadAdd:'Add', NumpadSubtract:'Subtract', NumpadMultiply:'Multiply', NumpadDivide:'Divide', NumpadDecimal:'Decimal', NumpadEnter:'Enter' }[e.code] || e.code.replace('Numpad','NumPad')) : e.code.startsWith('Key') ? e.code.slice(3) : e.code.startsWith('Digit') ? e.code.slice(5) : special[e.key] || e.key;
+  if (!e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey && !/^F([1-9]|1[0-9]|2[0-4])$/.test(key)) { $('error').textContent = '请搭配 Ctrl、Alt、Shift 或 Win 使用。'; return; }
+  draft = [e.ctrlKey ? 'Ctrl' : '', e.altKey ? 'Alt' : '', e.shiftKey ? 'Shift' : '', e.metaKey ? 'Win' : '', key].filter(Boolean).join('+');
+  dirty = true; stopRecording();
+}, true);
+$('save').onclick = () => {
+  const name = $('name').value.trim(), exePath = $('path').value.trim(), processName = $('process').value.trim().replace(/\.exe$/i, '');
+  if (!name || !exePath || !processName || !draft) { $('error').textContent = '请填写应用信息，并录制快捷键。'; return; }
+  const entries = items.map(a => { const copy = { ...a }; delete copy._new; return copy; });
+  entries[selected] = { ...entries[selected], name, exePath, processName, key: draft }; saveEntries(entries, selected);
+};
+$('add').onclick = async () => {
+  if (!await discard()) return;
+  if (selected >= 0 && items[selected]._new) items.splice(selected, 1);
+  items.push({ name: '新应用', key: '', processName: '', exePath: '', windowClass: '', _new: true });
+  $('search').value = ''; load(items.length - 1); dirty = true; $('name').focus(); $('name').select();
+};
+$('delete').onclick = async () => {
+  if (selected < 0 || !await askConfirmation({ title: '删除这条快捷键？', description: '将移除「' + (items[selected].name || items[selected].processName || '新应用') + '」的快捷键配置，不会卸载应用。', accept: '删除快捷键' })) return;
+  const entries = items.filter((_, i) => i !== selected);
+  if (items[selected]._new) { items = entries; load(Math.min(selected, items.length - 1)); return; }
+  saveEntries(entries, Math.min(selected, entries.length - 1));
+};
+$('browse').onclick = () => { stopRecording(); send({ type: 'browse' }); };
+let runningApps = [], runningBusy = false;
+function renderRunningApps() {
+  const query = $('running-search').value.trim().toLowerCase();
+  const apps = runningApps.filter(app => [app.name, app.title, app.process].join(' ').toLowerCase().includes(query));
+  $('running-list').replaceChildren();
+  for (const app of apps) {
+    const row = document.createElement('button'); row.type = 'button'; row.className = 'running-item'; row.disabled = runningBusy || !!app.error;
+    row.title = app.error || app.path;
+    const icon = document.createElement('span'); icon.className = 'icon'; icon.style.setProperty('--bg','#eaf1ff'); icon.style.setProperty('--fg','#3d68e5'); icon.textContent = (app.name || app.process)[0].toUpperCase();
+    const text = document.createElement('div'); text.className = 'running-text';
+    const name = document.createElement('div'); name.className = 'running-name'; name.textContent = app.name;
+    const meta = document.createElement('div'); meta.className = 'running-meta'; meta.textContent = app.error || app.process + '.exe · ' + app.title;
+    text.append(name, meta); row.append(icon, text);
+    row.onclick = () => { runningBusy = true; renderRunningApps(); $('running-status').textContent = '正在读取应用信息…'; send({type:'pickRunningApp', id:app.id}); };
+    $('running-list').append(row);
+  }
+  if (!apps.length) {
+    const empty=document.createElement('p'); empty.className='running-empty';
+    empty.textContent=runningBusy ? '正在查找应用…' : '未找到匹配的应用'; $('running-list').append(empty);
+  }
+  $('running-refresh').disabled=runningBusy;
+  $('running-status').title='';
+  $('running-status').textContent = runningBusy ? '正在读取应用列表…' : apps.length ? apps.length + ' 个应用 · 选择后自动填写' : '未找到应用，可尝试刷新或手动选择 exe';
+}
+function refreshRunningApps() {
+  runningBusy=true; runningApps=[]; renderRunningApps(); send({type:'runningApps'});
+}
+$('running').onclick=()=>{stopRecording();$('running-search').value='';$('running-dialog').showModal();refreshRunningApps();$('running-search').focus();};
+$('running-close').onclick=()=>{$('running-dialog').close();};
+$('running-refresh').onclick=refreshRunningApps;
+$('running-search').oninput=()=>{renderRunningApps();$('running-list').scrollTop=0;};
+$('reset').onclick = async () => { if (await discard()) { stopRecording(); setBusy(true); send({ type: 'load' }); } };
+window.chrome.webview.addEventListener('message', async event => {
+  const m = event.data;
+  switch (m.type) {
+    case 'loaded': items = m.entries; setBusy(false); load(items.length ? 0 : -1); break;
+    case 'saved': items = pending.entries; const index = pending.index; pending = null; dirty = false; setBusy(false); load(index); toast('配置已保存，快捷键已更新'); break;
+    case 'error': pending = null; setBusy(false); $('error').textContent = m.message; toast(m.message); break;
+    case 'picked': if ($('running-dialog').open) $('running-dialog').close(); runningBusy=false; $('path').value = m.path; $('process').value = m.process; if (!$('name').value || $('name').value === '新应用') $('name').value = m.name || m.process; dirty = true; $('error').textContent=''; break;
+    case 'runningApps': if (!$('running-dialog').open) break; runningApps=m.apps; runningBusy=false; renderRunningApps(); break;
+    case 'runningAppError': if (!$('running-dialog').open) break; runningBusy=false; renderRunningApps(); $('running-status').textContent=m.message; $('running-status').title=m.message; break;
+    case 'stopRecording': stopRecording(); break;
+    case 'closing': if ($('running-dialog').open) { $('running-dialog').close(); break; } if (await discard()) { stopRecording(); send({ type: 'close' }); } break;
+  }
+});
+setBusy(true); send({ type: 'load' });
+</script></html>

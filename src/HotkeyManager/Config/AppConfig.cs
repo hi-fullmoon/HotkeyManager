@@ -13,6 +13,8 @@ public sealed class HotkeyEntry
     /// <summary>组合键字符串，如 "alt+1"、"ctrl+alt+a"，最后一段为按键，其余为修饰键。</summary>
     public string Key { get; set; } = "";
 
+    public string? Name { get; set; }
+
     /// <summary>进程名（不含 .exe），如 WeChat、notepad。</summary>
     public string ProcessName { get; set; } = "";
 
