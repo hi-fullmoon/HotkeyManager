@@ -28,6 +28,17 @@ internal static class Program
                     if (content.Contains("searchcount")) {
                         var state = await core.ExecuteScriptAsync("JSON.stringify({title:document.querySelector('h1')?.textContent,count:document.getElementById('searchcount')?.textContent,ready:typeof send})");
                         Console.WriteLine("PAGE " + state);
+                        // CSS 未溢出也可能是浏览器原生区域比窗口小；同时校验物理像素覆盖范围。
+                        var viewport = await core.ExecuteScriptAsync("JSON.stringify({width:innerWidth*devicePixelRatio,height:innerHeight*devicePixelRatio})");
+                        using (var viewportResult = System.Text.Json.JsonDocument.Parse(System.Text.Json.JsonSerializer.Deserialize<string>(viewport)!))
+                        {
+                            var viewportRoot = viewportResult.RootElement;
+                            var fillsWindow = view.Bounds == form.ClientRectangle
+                                && Math.Abs(viewportRoot.GetProperty("width").GetDouble() - form.ClientSize.Width) <= 2
+                                && Math.Abs(viewportRoot.GetProperty("height").GetDouble() - form.ClientSize.Height) <= 2;
+                            Console.WriteLine($"VIEWPORT fillsWindow={fillsWindow} dpi={form.DeviceDpi} client={form.ClientSize} web={viewport}");
+                            if (!fillsWindow) Environment.ExitCode = 2;
+                        }
                         var layout = await core.ExecuteScriptAsync("""
                             (() => {
                               const d=document.documentElement,b=document.body, del=document.getElementById('delete'),save=document.getElementById('save');
@@ -39,7 +50,7 @@ internal static class Program
                             """);
                         Console.WriteLine("LAYOUT " + layout);
                         using var layoutResult = System.Text.Json.JsonDocument.Parse(System.Text.Json.JsonSerializer.Deserialize<string>(layout)!);
-                        Environment.ExitCode = layoutResult.RootElement.GetProperty("pass").GetBoolean() ? 0 : 2;
+                        if (!layoutResult.RootElement.GetProperty("pass").GetBoolean()) Environment.ExitCode = 2;
                         await core.ExecuteScriptAsync("document.getElementById('delete').click()");
                         var modal = await core.ExecuteScriptAsync("""
                             (()=>{

@@ -49,6 +49,16 @@ internal sealed class SettingsForm : Form
     {
         base.OnDpiChanged(e);
         SetClientSizeForDpi(e.DeviceDpiNew);
+        // 等 WinForms 完成本轮 DPI 布局后，再同步异步创建的浏览器控件。
+        if (IsHandleCreated && !IsDisposed)
+            BeginInvoke((Action)SynchronizeViewBounds);
+    }
+
+    private void SynchronizeViewBounds()
+    {
+        if (IsDisposed || _view.IsDisposed) return;
+        PerformLayout();
+        _view.Bounds = ClientRectangle;
     }
 
     private void SetClientSizeForDpi(int dpi) => ClientSize = new Size(
@@ -63,6 +73,7 @@ internal sealed class SettingsForm : Form
             if (IsDisposed) return;
             await _view.EnsureCoreWebView2Async(environment);
             if (IsDisposed) return;
+            SynchronizeViewBounds();
             var core = _view.CoreWebView2;
             core.Settings.AreDevToolsEnabled = false;
             core.Settings.AreDefaultContextMenusEnabled = false;
